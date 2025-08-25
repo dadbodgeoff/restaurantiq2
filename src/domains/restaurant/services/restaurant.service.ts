@@ -85,4 +85,8 @@ export class RestaurantService {
   async getRestaurantUsers(restaurantId: string): Promise<any[]> {
     return await this.userRepository.findByRestaurantId(restaurantId);
   }
+
+  async getAllRestaurants(): Promise<Restaurant[]> {
+    return await this.restaurantRepository.findAll();
+  }
 }

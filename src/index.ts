@@ -24,6 +24,27 @@ import { requestLogger } from './infrastructure/web/middleware/request-logger';
 import { setupRoutes } from './infrastructure/web/routes';
 import { moduleRegistry } from './config/module-registry';
 
+// Extend Express Request interface globally
+declare global {
+  namespace Express {
+    interface Request {
+      correlationId: string;
+      container: {
+        resolve: (service: string) => unknown;
+      };
+      user?: {
+        id: string;
+        restaurantId: string;
+        role: string;
+        permissions: string[];
+        email?: string;
+        firstName?: string;
+        lastName?: string;
+      };
+    }
+  }
+}
+
 async function bootstrap() {
   try {
     const config = getEnvConfig();
@@ -34,9 +55,9 @@ async function bootstrap() {
     await database.connect();
     logger.info('Database', 'Connected to database successfully');
 
-    // Initialize all modules (commented out until modules are ready)
-    // await moduleRegistry.initializeModules(container);
-    // logger.info('Modules', `Initialized ${moduleRegistry.getAllModules().length} modules`);
+    // Initialize all modules
+    await moduleRegistry.initializeModules(container as any);
+    logger.info('Modules', `Initialized ${moduleRegistry.getAllModules().length} modules`);
 
     // Create Express app
     const app = express();
@@ -63,10 +84,10 @@ async function bootstrap() {
     app.use(express.json({ limit: '10mb' }));
     app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // Request correlation ID
+    // Request correlation ID and container scope
     app.use((req, res, next) => {
       req.correlationId = req.headers['x-correlation-id'] as string || uuidv4();
-      req.container = container.createScope();
+      req.container = container.createScope();  // Create proper request scope
       next();
     });
 
@@ -76,11 +97,11 @@ async function bootstrap() {
     // Core API routes (includes health check at /api/v1/health)
     app.use(`/api/${config.API_VERSION}`, setupRoutes());
 
-    // Module routes (commented out until modules are ready)
-    // const moduleRoutes = moduleRegistry.getAllRoutes(container);
-    // moduleRoutes.forEach(router => {
-    //   app.use(`/api/${config.API_VERSION}`, router);
-    // });
+    // Module routes (now enabled!)
+    const moduleRoutes = moduleRegistry.getAllRoutes(container as any);
+    moduleRoutes.forEach(router => {
+      app.use(`/api/${config.API_VERSION}`, router);
+    });
 
     // 404 handler
     app.use('*', (req, res) => {

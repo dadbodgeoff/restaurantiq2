@@ -4,6 +4,7 @@ import { authenticate, authorizeRestaurantAccess } from '../../../domains/auth/m
 // Import actual route implementations
 import authRoutes from './auth';
 import userRoutes from './users';
+import restaurantRoutes from './restaurants';
 
 // Import route modules (to be created in future phases)
 export function setupRoutes(): Router {
@@ -25,8 +26,46 @@ export function setupRoutes(): Router {
     });
   });
 
+  // Database status check (public)
+  router.get('/database/status', async (req, res) => {
+    try {
+      const databaseService = req.container.resolve('databaseService') as any;
+
+      if (!databaseService) {
+        throw new Error('Database service not available');
+      }
+
+      const status = await databaseService.getHealthStatus();
+
+      res.json({
+        success: true,
+        data: {
+          status: status.isHealthy ? 'healthy' : 'unhealthy',
+          connection: status.connection,
+          database: status.database,
+          tables: status.tables,
+          timestamp: new Date().toISOString()
+        },
+        correlationId: req.correlationId
+      });
+    } catch (error) {
+      res.status(503).json({
+        success: false,
+        error: {
+          code: 'DATABASE_ERROR',
+          message: 'Database connection failed',
+          details: error.message,
+          correlationId: req.correlationId
+        }
+      });
+    }
+  });
+
   // Authentication routes (public)
   router.use('/auth', authRoutes);
+
+  // Restaurant routes (some public, some protected)
+  router.use('/restaurants', restaurantRoutes);
 
   // Protected routes
   const protectedRouter = Router();
@@ -34,38 +73,6 @@ export function setupRoutes(): Router {
 
   // User management routes
   protectedRouter.use('/', userRoutes);
-
-  // Menu management (placeholder - will be implemented in future phases)
-  protectedRouter.get('/restaurants/:restaurantId/menu',
-    authorizeRestaurantAccess(),
-    (req, res) => {
-      res.json({
-        success: false,
-        error: {
-          code: 'NOT_IMPLEMENTED',
-          message: 'Menu management endpoints will be implemented in future phases',
-          correlationId: req.correlationId,
-          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy']
-        },
-      });
-    }
-  );
-
-  // PREP management (placeholder - will be implemented in future phases)
-  protectedRouter.get('/restaurants/:restaurantId/prep',
-    authorizeRestaurantAccess(),
-    (req, res) => {
-      res.json({
-        success: false,
-        error: {
-          code: 'NOT_IMPLEMENTED',
-          message: 'PREP management endpoints will be implemented in future phases',
-          correlationId: req.correlationId,
-          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy']
-        },
-      });
-    }
-  );
 
   // Revenue Ready management (placeholder - will be implemented in future phases)
   protectedRouter.get('/restaurants/:restaurantId/revenue',
@@ -77,7 +84,7 @@ export function setupRoutes(): Router {
           code: 'NOT_IMPLEMENTED',
           message: 'Revenue Ready management endpoints will be implemented in future phases',
           correlationId: req.correlationId,
-          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy']
+          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy', 'menuManagement', 'prepManagement']
         },
       });
     }

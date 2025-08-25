@@ -1,34 +1,15 @@
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '../../../infrastructure/security/jwt/jwt.service';
-import { AuthService } from '../services/auth.service';
 import { PermissionService } from '../../../infrastructure/security/permission.service';
 import { AuthenticationError, AuthorizationError } from '../../../lib/errors/specific-errors';
 import { Permission, UserRole } from '../../shared/types/permissions';
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: string;
-        restaurantId: string;
-        role: UserRole;
-        permissions: Permission[];
-        email?: string;
-        firstName?: string;
-        lastName?: string;
-      };
-      correlationId: string;
-      container: any;
-    }
-  }
-}
-
-export function authenticate() {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const authenticate = (): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const authHeader = req.headers.authorization;
 
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      if (!authHeader?.startsWith('Bearer ')) {
         throw new AuthenticationError(
           'Missing or invalid authorization header',
           req.correlationId
@@ -58,7 +39,7 @@ export function authenticate() {
         id: payload.userId,
         restaurantId: payload.restaurantId,
         role: payload.role as UserRole,
-        permissions: permissions,
+        permissions,
         email: payload.email,
         firstName: payload.firstName,
         lastName: payload.lastName,
@@ -71,8 +52,8 @@ export function authenticate() {
   };
 }
 
-export function authorizeRestaurantAccess() {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const authorizeRestaurantAccess = (): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     const restaurantId = req.params.restaurantId || req.query.restaurantId;
 
     if (!restaurantId) {
@@ -101,8 +82,8 @@ export function authorizeRestaurantAccess() {
 // PERMISSION-BASED AUTHORIZATION MIDDLEWARE
 // ==========================================
 
-export function requirePermission(permission: Permission) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const requirePermission = (permission: Permission): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new AuthenticationError(
         'Authentication required',
@@ -127,8 +108,8 @@ export function requirePermission(permission: Permission) {
   };
 }
 
-export function requireAnyPermission(...permissions: Permission[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const requireAnyPermission = (...permissions: Permission[]): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new AuthenticationError(
         'Authentication required',
@@ -155,8 +136,8 @@ export function requireAnyPermission(...permissions: Permission[]) {
   };
 }
 
-export function requireAllPermissions(...permissions: Permission[]) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const requireAllPermissions = (...permissions: Permission[]): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new AuthenticationError(
         'Authentication required',
@@ -187,8 +168,8 @@ export function requireAllPermissions(...permissions: Permission[]) {
 // ROLE-BASED AUTHORIZATION (BACKWARD COMPATIBILITY)
 // ==========================================
 
-export function requireRole(requiredRole: UserRole) {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const requireRole = (requiredRole: UserRole): ((req: Request, res: Response, next: NextFunction) => void) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       throw new AuthenticationError(
         'Authentication required',
@@ -205,8 +186,8 @@ export function requireRole(requiredRole: UserRole) {
       GUEST: 1,
     };
 
-    const userRoleLevel = roleHierarchy[req.user.role] || 0;
-    const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
+    const userRoleLevel = roleHierarchy[req.user.role as keyof typeof roleHierarchy] || 0;
+    const requiredRoleLevel = roleHierarchy[requiredRole as keyof typeof roleHierarchy] || 0;
 
     if (userRoleLevel < requiredRoleLevel) {
       throw new AuthorizationError(
@@ -229,8 +210,8 @@ export function requireRole(requiredRole: UserRole) {
 // ROLE ASSIGNMENT AUTHORIZATION
 // ==========================================
 
-export function canAssignRole(targetRole: UserRole) {
-  return async (req: Request, res: Response, next: NextFunction) => {
+export const canAssignRole = (targetRole: UserRole): ((req: Request, res: Response, next: NextFunction) => Promise<void>) => {
+  return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     if (!req.user) {
       throw new AuthenticationError(
         'Authentication required',

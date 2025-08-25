@@ -1,0 +1,509 @@
+# RestaurantIQ Enterprise Development Standards
+# COMPLETE PATTERN GUIDE - All established patterns across the entire codebase
+
+## 🏗️ DOCKER & CONTAINERIZATION PATTERNS (MANDATORY)
+
+### Multi-Stage Dockerfile Pattern
+```dockerfile
+FROM node:18-alpine AS base
+
+# Install system dependencies (MANDATORY)
+RUN apk add --no-cache python3 make g++ openssl dumb-init curl git
+
+WORKDIR /app
+COPY package*.json ./
+
+# Production dependencies only (MANDATORY)
+RUN npm ci --only=production && npm cache clean --force
+
+# Non-root user (MANDATORY for security)
+RUN addgroup -g 1001 -S nodejs && adduser -S nextjs -u 1001
+
+# Prisma generation stage (MANDATORY for all apps with Prisma)
+FROM base AS prisma-generator
+RUN npm ci && npx prisma generate
+
+# Development stage
+FROM prisma-generator AS development
+COPY . .
+RUN mkdir -p logs data && chown -R nextjs:nodejs logs data
+USER nextjs
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM base AS production
+COPY --from=prisma-generator /app/node_modules/.prisma ./
+COPY . .
+RUN npm run build
+USER nextjs
+CMD ["npm", "start"]
+```
+
+### Docker Compose Service Pattern
+```yaml
+service-name:
+  build:
+    context: .
+    dockerfile: Dockerfile.service-name
+    target: development
+  platform: linux/arm64/v8  # M4 Pro optimization
+  container_name: restaurantiq-service-name
+  environment:
+    - NODE_ENV=development
+  volumes:
+    - .:/app:cached
+    - ./logs:/app/logs
+  depends_on:
+    postgres:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:PORT/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  networks:
+    - restaurantiq-network
+  restart: unless-stopped
+```
+
+## 🌐 NGINX REVERSE PROXY PATTERNS (MANDATORY)
+
+### Location Block Pattern
+```nginx
+location /api/v1/ {
+    limit_req zone=api burst=20 nodelay;
+    proxy_pass http://backend;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    # CORS headers (MANDATORY)
+    add_header 'Access-Control-Allow-Origin' 'https://restaurantiq.local' always;
+    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, OPTIONS' always;
+    add_header 'Access-Control-Allow-Headers' 'Authorization, Content-Type, Accept' always;
+}
+```
+
+### SSL Configuration Pattern
+```nginx
+server {
+    listen 443 ssl http2;
+    server_name restaurantiq.local;
+
+    # SSL certificates (MANDATORY paths)
+    ssl_certificate /etc/nginx/ssl/restaurantiq.local.crt;
+    ssl_certificate_key /etc/nginx/ssl/restaurantiq.local.key;
+
+    # Security headers (MANDATORY)
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Content-Security-Policy "default-src 'self'" always;
+}
+```
+
+## 📜 STARTUP SCRIPT PATTERNS (MANDATORY)
+
+### Main Startup Script Pattern
+```bash
+#!/bin/bash
+set -e
+
+echo "🚀 Starting RestaurantIQ Service..."
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+check_docker() {
+    if ! command_exists docker; then
+        echo "❌ Docker not found"
+        exit 1
+    fi
+    echo "✅ Docker running"
+}
+
+create_directories() {
+    echo "📁 Creating directories..."
+    mkdir -p logs data backups
+    echo "✅ Directories ready"
+}
+
+main() {
+    check_docker
+    create_directories
+    start_services
+    verify_services
+    test_endpoints
+}
+
+main "$@"
+```
+
+## 🏛️ APPLICATION ARCHITECTURE PATTERNS (MANDATORY)
+
+### Express Application Setup
+```typescript
+// src/index.ts - Standard application bootstrap
+import 'reflect-metadata';
+import * as dotenv from 'dotenv';
+import express from 'express';
+
+// Load config FIRST (MANDATORY)
+dotenv.config();
+
+// Container setup (MANDATORY)
+import { container } from './config/container';
+
+// Middleware setup (MANDATORY order)
+app.use(cors());
+app.use(helmet());
+app.use(express.json());
+app.use(requestLogger);
+
+// Routes (MANDATORY pattern)
+import { setupRoutes } from './infrastructure/web/routes';
+
+// Health check (MANDATORY)
+app.get('/health', (req, res) => {
+  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
+});
+
+// Error handling (MANDATORY - last)
+app.use(errorHandler);
+```
+
+### Repository Pattern (MANDATORY)
+```typescript
+export class NewRepository extends BaseRepository {
+  constructor(prisma: PrismaClient) {
+    super(prisma);  // MANDATORY
+  }
+
+  async findById(id: string) {
+    this.validateId(id, 'EntityName');  // MANDATORY
+    return this.executeQuery(async () => {  // MANDATORY
+      this.logOperation('findById', { id });  // MANDATORY
+      // Implementation
+    }, 'findById');
+  }
+}
+```
+
+## 🔧 CONFIGURATION PATTERNS (MANDATORY)
+
+### Environment Configuration
+```typescript
+export interface AppConfig {
+  port: number;
+  nodeEnv: string;
+  databaseUrl: string;
+  jwtSecret: string;
+  corsOrigins: string[];
+}
+
+export const getEnvConfig = (): AppConfig => {
+  return {
+    port: parseInt(process.env.PORT || '3000', 10),
+    nodeEnv: process.env.NODE_ENV || 'development',
+    databaseUrl: process.env.DATABASE_URL || '',
+    jwtSecret: process.env.JWT_SECRET || '',
+    corsOrigins: process.env.CORS_ORIGINS?.split(',') || [],
+  };
+};
+```
+
+### Container Registration Pattern
+```typescript
+// Infrastructure first
+container.register({
+  databaseService: asClass(DatabaseService).singleton(),
+  loggerService: asClass(LoggerService).singleton(),
+});
+
+// Repositories (scoped for per-request)
+container.register({
+  userRepository: asClass(UserRepository).scoped(),
+  restaurantRepository: asClass(RestaurantRepository).scoped(),
+});
+
+// Services (scoped for per-request)
+container.register({
+  restaurantService: asClass(RestaurantService).scoped(),
+  authService: asClass(AuthService).scoped(),
+});
+```
+
+## 📊 DATABASE & MIGRATION PATTERNS (MANDATORY)
+
+### Prisma Schema Standards
+```prisma
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model EntityName {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign keys (snake_case)
+  restaurantId String?
+
+  // Relations
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id])
+
+  // Indexes (MANDATORY for performance)
+  @@index([restaurantId])
+  @@map("entity_names")
+}
+```
+
+## 🔒 SECURITY PATTERNS (MANDATORY)
+
+### Middleware Pattern
+```typescript
+export const authenticate = () => {
+  return (req: Request, res: Response, next: Function) => {
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    next();
+  };
+};
+
+export const authorizeRestaurantAccess = () => {
+  return (req: Request, res: Response, next: Function) => {
+    const userRestaurantId = req.user?.restaurantId;
+    const requestedRestaurantId = req.params.restaurantId;
+
+    if (userRestaurantId !== requestedRestaurantId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+    next();
+  };
+};
+```
+
+## 📝 LOGGING & MONITORING PATTERNS (MANDATORY)
+
+### Structured Logging
+```typescript
+export class LoggerService {
+  info(operation: string, message: string, data?: any) {
+    console.log(`[${new Date().toISOString()}] INFO:`, {
+      operation,
+      message,
+      correlationId: data?.correlationId,
+      ...data
+    });
+  }
+
+  error(operation: string, error: Error, data?: any) {
+    console.error(`[${new Date().toISOString()}] ERROR:`, {
+      operation,
+      error: error.message,
+      stack: error.stack,
+      ...data
+    });
+  }
+}
+```
+
+### Health Check Pattern
+```typescript
+app.get('/health', async (req, res) => {
+  try {
+    await databaseService.ping();
+    res.json({
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.env.npm_package_version
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'unhealthy',
+      error: error.message
+    });
+  }
+});
+```
+
+## 🚀 DEPLOYMENT & CI/CD PATTERNS (MANDATORY)
+
+### Build Pipeline Standards
+```bash
+#!/bin/bash
+set -e
+
+check_environment() {
+    if [ -z "$DATABASE_URL" ]; then
+        echo "❌ DATABASE_URL not set"
+        exit 1
+    fi
+}
+
+run_migrations() {
+    echo "🗄️ Running migrations..."
+    npm run db:migrate
+}
+
+build_application() {
+    echo "🏗️ Building application..."
+    docker build -f Dockerfile.backend -t restaurantiq-backend .
+}
+
+deploy_services() {
+    echo "🚀 Starting services..."
+    docker-compose up -d --scale backend=2
+}
+
+main() {
+    check_environment
+    run_migrations
+    build_application
+    deploy_services
+    verify_deployment
+}
+```
+
+## 📁 FILE ORGANIZATION PATTERNS (MANDATORY)
+
+### Directory Structure
+```
+src/
+├── domains/
+│   ├── {domain}/
+│   │   ├── repositories/
+│   │   │   ├── {entity}.repository.ts
+│   │   │   └── base-repository.ts
+│   │   ├── services/
+│   │   │   └── {entity}.service.ts
+│   │   └── types/
+│   │       └── {entity}.ts
+│   └── shared/
+│       ├── base-repository.ts
+│       └── types/
+│           └── index.ts
+├── infrastructure/
+│   ├── database/
+│   ├── logging/
+│   └── web/
+│       ├── middleware/
+│       ├── routes/
+│       └── index.ts
+└── config/
+    ├── container.ts
+    ├── env.ts
+    └── module-registry.ts
+```
+
+## 🏷️ NAMING CONVENTIONS (MANDATORY)
+
+### Files
+- `kebab-case.ts` - General files
+- `PascalCase.ts` - Classes, types, interfaces
+- `camelCase.ts` - Functions, variables, methods
+
+### Database
+- `snake_case` - Table names, column names, foreign keys
+- `PascalCase` - Model names in Prisma
+- `camelCase` - Field names in TypeScript
+
+## 🔧 DEVELOPMENT WORKFLOW PATTERNS (MANDATORY)
+
+### Feature Development Checklist
+```bash
+# 1. Database Schema
+vim prisma/schema.prisma
+npm run db:migrate:dev
+
+# 2. Types & Interfaces
+vim src/domains/shared/types/
+
+# 3. Repository Layer
+vim src/domains/.../repositories/
+vim src/config/container.ts
+
+# 4. Service Layer
+vim src/domains/.../services/
+
+# 5. API Routes
+vim src/infrastructure/web/routes/
+
+# 6. Testing
+npm run test
+
+# 7. Documentation
+vim README.md
+```
+
+## 🚨 CRITICAL CHECKLISTS (MANDATORY)
+
+### Repository Implementation Checklist
+- [ ] Extends `BaseRepository`?
+- [ ] Constructor calls `super(prisma)`?
+- [ ] Input validation on all public methods?
+- [ ] Error handling via `executeQuery`?
+- [ ] Development logging via `logOperation`?
+- [ ] Safe optional handling for nullable fields?
+- [ ] TypeScript interfaces defined?
+- [ ] Container registration added?
+
+### Service Implementation Checklist
+- [ ] Dependency injection via constructor?
+- [ ] Business logic separated from data access?
+- [ ] Error handling with custom business errors?
+- [ ] Input validation before processing?
+- [ ] Container registration added?
+
+### Docker Implementation Checklist
+- [ ] Multi-stage build pattern?
+- [ ] Non-root user for security?
+- [ ] Proper health checks?
+- [ ] Resource limits set?
+- [ ] Dependencies properly ordered?
+
+## 📚 REFERENCE IMPLEMENTATIONS
+
+### Core Files
+- `src/domains/shared/base-repository.ts` - Repository foundation
+- `src/config/container.ts` - Dependency injection
+- `nginx/nginx.conf` - Reverse proxy configuration
+- `docker-compose.yml` - Service orchestration
+- `scripts/start.sh` - Startup automation
+
+### Example Implementations
+- `src/domains/restaurant/repositories/restaurant.repository.ts`
+- `src/domains/restaurant/services/restaurant.service.ts`
+- `src/infrastructure/web/routes/restaurants.ts`
+- `src/index.ts` - Application bootstrap
+
+## 🎯 ENFORCEMENT
+
+**ALL PATTERNS ABOVE ARE MANDATORY** for all new development. Code reviews will check for compliance with these enterprise standards.
+
+**Why?** These patterns ensure:
+- **Consistency** across the entire codebase
+- **Reliability** with proper error handling
+- **Security** with standardized practices
+- **Maintainability** as the codebase grows to 8-10 models
+- **Scalability** for enterprise deployment
+- **Developer Experience** with predictable patterns
+
+**Reference Documents:**
+- `README.md` - Architecture standards section
+- `REPOSITORY_PATTERN_GUIDE.md` - Implementation guide
+- This `.cursorrules` file - Complete development standards

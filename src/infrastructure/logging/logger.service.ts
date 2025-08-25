@@ -20,25 +20,48 @@ export class LoggerService {
   private logger: pino.Logger;
 
   constructor() {
-    const config = getEnvConfig();
+    console.log('🔧 LoggerService constructor called');
 
-    this.logger = pino({
-      level: config.LOG_LEVEL,
-      formatters: {
-        level: (label) => ({ level: label }),
-      },
-      timestamp: pino.stdTimeFunctions.isoTime,
-      ...(config.LOG_FORMAT === 'dev' && {
-        transport: {
-          target: 'pino-pretty',
-          options: {
-            colorize: true,
-            translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
-            ignore: 'pid,hostname',
-          },
+    try {
+      console.log('🔍 Getting environment config...');
+      const config = getEnvConfig();
+      console.log('✅ Environment config loaded:', {
+        LOG_LEVEL: config.LOG_LEVEL,
+        LOG_FORMAT: config.LOG_FORMAT
+      });
+
+      this.logger = pino({
+        level: config.LOG_LEVEL,
+        formatters: {
+          level: (label) => ({ level: label }),
         },
-      }),
-    });
+        timestamp: pino.stdTimeFunctions.isoTime,
+        ...(config.LOG_FORMAT === 'dev' && {
+          transport: {
+            target: 'pino-pretty',
+            options: {
+              colorize: true,
+              translateTime: 'SYS:yyyy-mm-dd HH:MM:ss.l',
+              ignore: 'pid,hostname',
+            },
+          },
+        }),
+      });
+
+      console.log('✅ LoggerService initialized successfully');
+    } catch (error) {
+      console.error('🚨 LoggerService initialization failed:', error);
+      console.error('🚨 Error details:', error instanceof Error ? error.message : String(error));
+      // Fallback to basic console logger
+      this.logger = pino({
+        level: 'info',
+        formatters: {
+          level: (label) => ({ level: label }),
+        },
+        timestamp: pino.stdTimeFunctions.isoTime,
+      });
+      console.log('⚠️ Using fallback logger');
+    }
   }
 
   info(operation: string, message: string, context?: Partial<LogContext>): void {

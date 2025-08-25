@@ -1,0 +1,76 @@
+# Dockerfile.backend - Multi-stage build for development and production
+FROM node:18-alpine AS base
+
+# Install dependencies for native modules and development
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    openssl \
+    dumb-init \
+    curl \
+    git \
+    && rm -rf /var/cache/apk/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
+
+# Prisma client generation stage
+FROM base AS prisma-generator
+
+# Install all dependencies (including dev dependencies for Prisma CLI)
+RUN npm ci && npm cache clean --force
+
+# Copy Prisma schema for generation
+COPY prisma/schema.prisma ./prisma/schema.prisma
+
+# Generate Prisma client at build time
+RUN npx prisma generate
+
+# Development stage with hot reload
+FROM prisma-generator AS development
+
+# Copy source code
+COPY --chown=nextjs:nodejs . .
+
+# Create logs and data directories
+RUN mkdir -p logs data && chown -R nextjs:nodejs logs data
+
+# Switch to non-root user
+USER nextjs
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl -f http://localhost:3000/api/v1/health || exit 1
+
+# Start with dumb-init for proper signal handling
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM base AS production
+
+# Copy generated Prisma client from prisma-generator stage
+COPY --from=prisma-generator /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=prisma-generator /app/node_modules/@prisma/client ./node_modules/@prisma/client
+
+# Copy source code and build
+COPY --chown=nextjs:nodejs . .
+RUN npm run build
+
+# Switch to non-root user
+USER nextjs
+
+# Start production server
+CMD ["npm", "start"]
+
+EXPOSE 3000

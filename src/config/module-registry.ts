@@ -1,10 +1,11 @@
 import { Router } from 'express';
-import { asClass } from 'awilix';
+import { asClass, AwilixContainer } from 'awilix';
 
-// Container type for DI container
+// Container type for DI container - compatible with Awilix
 export interface Container {
-  register: (name: string, registration: unknown) => void;
+  register: (name: string | symbol, registration: unknown) => void;
   resolve: <T>(name: string) => T;
+  createScope?: () => Container;
 }
 
 // Module Interface - Every module must implement this

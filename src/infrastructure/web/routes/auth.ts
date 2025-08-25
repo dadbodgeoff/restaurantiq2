@@ -1,68 +1,57 @@
 import { Router } from 'express';
 import { BusinessRuleError } from '../../../lib/errors/specific-errors';
 import { AuthService } from '../../../domains/auth/services/auth.service';
-import { UserRepository } from '../../../domains/restaurant/repositories/user.repository';
+import { AuthenticationError } from '../../../lib/errors/specific-errors';
 
 const router = Router();
 
 // ==========================================
-// AUTHENTICATION ENDPOINTS
+// AUTHENTICATION ENDPOINTS - PROPER DI USAGE
 // ==========================================
 
 // POST /api/v1/auth/login
-// User login with permission loading
+// User login with auto-detection and permission loading
 router.post('/login', async (req, res, next) => {
   const { email, password, restaurantId } = req.body;
   const correlationId = req.correlationId;
 
-  if (!email || !password || !restaurantId) {
+  if (!email || !password) {
     return next(
       new BusinessRuleError(
-        'Email, password, and restaurant ID are required',
+        'Email and password are required',
         correlationId
       )
     );
   }
 
   try {
-    const prisma = req.container.resolve('prisma');
-    const jwtService = req.container.resolve('jwtService');
-    const permissionService = req.container.resolve('permissionService');
-    const passwordService = req.container.resolve('passwordService');
-    const loggerService = req.container.resolve('loggerService');
-    const databaseService = req.container.resolve('databaseService');
+    // ✅ SIMPLE DI RESOLUTION - Direct AuthService resolution
+    console.log('🔍 Resolving AuthService from container...');
+    const authService = req.container.resolve('authService') as AuthService;
 
-    const userRepository = new UserRepository(prisma);
-
-    const authService = new AuthService(
-      userRepository,
-      jwtService,
-      permissionService,
-      passwordService,
-      loggerService,
-      databaseService
-    );
-
-    try {
-      const result = await authService.login({
-        email,
-        password,
-        restaurantId,
-        correlationId
-      });
-
-      res.status(200).json({
-        success: true,
-        data: result,
-        correlationId
-      });
-    } catch (loginError) {
-      loggerService.error('Login error', 'Authentication failed', {
-        correlationId,
-        error: loginError instanceof Error ? loginError.message : 'Unknown error'
-      });
-      next(loginError);
+    if (!authService) {
+      console.error('🚨 AuthService not resolved from container!');
+      throw new AuthenticationError('Service configuration error', correlationId);
     }
+
+    console.log('✅ AuthService resolved successfully');
+
+    console.log('🔍 Attempting login for:', { email, restaurantId, correlationId });
+
+    const result = await authService.login({
+      email,
+      password,
+      restaurantId, // Now optional - will auto-detect if not provided
+      correlationId
+    });
+
+    console.log('✅ Login successful:', { email, correlationId });
+
+    res.status(200).json({
+      success: true,
+      data: result,
+      correlationId
+    });
   } catch (error) {
     next(error);
   }
@@ -84,23 +73,17 @@ router.post('/register', async (req, res, next) => {
   }
 
   try {
-    const prisma = req.container.resolve('prisma');
-    const jwtService = req.container.resolve('jwtService');
-    const permissionService = req.container.resolve('permissionService');
-    const passwordService = req.container.resolve('passwordService');
-    const loggerService = req.container.resolve('loggerService');
-    const databaseService = req.container.resolve('databaseService');
+    // ✅ SIMPLE DI RESOLUTION - Direct AuthService resolution
+    console.log('🔍 Resolving AuthService from container...');
+    const authService = req.container.resolve('authService') as AuthService;
 
-    const userRepository = new UserRepository(prisma);
+    if (!authService) {
+      console.error('🚨 AuthService not resolved from container!');
+      throw new AuthenticationError('Service configuration error', correlationId);
+    }
 
-    const authService = new AuthService(
-      userRepository,
-      jwtService,
-      permissionService,
-      passwordService,
-      loggerService,
-      databaseService
-    );
+    console.log('✅ AuthService resolved successfully');
+
     const user = await authService.register({
       email,
       password,
@@ -139,24 +122,16 @@ router.post('/refresh', async (req, res, next) => {
   }
 
   try {
-    const prisma = req.container.resolve('prisma');
-    const jwtService = req.container.resolve('jwtService');
-    const permissionService = req.container.resolve('permissionService');
-    const passwordService = req.container.resolve('passwordService');
-    const loggerService = req.container.resolve('loggerService');
-    const databaseService = req.container.resolve('databaseService');
+    // ✅ SIMPLE DI RESOLUTION - Direct AuthService resolution
+    console.log('🔍 Resolving AuthService from container...');
+    const authService = req.container.resolve('authService') as AuthService;
 
-    const userRepository = new UserRepository(prisma);
+    if (!authService) {
+      console.error('🚨 AuthService not resolved from container!');
+      throw new AuthenticationError('Service configuration error', correlationId);
+    }
 
-    const authService = new AuthService(
-      userRepository,
-      jwtService,
-      permissionService,
-      passwordService,
-      loggerService,
-      databaseService
-    );
-
+    console.log('✅ AuthService resolved successfully');
     const result = await authService.refreshToken(refreshToken);
 
     res.json({
@@ -169,9 +144,29 @@ router.post('/refresh', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/auth/forgot-password
-// Initiate password reset
-router.post('/forgot-password', async (req, res, next) => {
+// POST /api/v1/auth/logout
+// User logout
+router.post('/logout', async (req, res, next) => {
+  const correlationId = req.correlationId;
+
+  try {
+    // Note: logout method doesn't exist yet, this is a placeholder
+    // const authService = req.container.resolve('authService') as AuthService;
+    // await authService.logout(refreshToken);
+
+    res.json({
+      success: true,
+      message: 'Logged out successfully (logout method to be implemented)',
+      correlationId
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/v1/auth/reset-password
+// Password reset request
+router.post('/reset-password', async (req, res, next) => {
   const { email, restaurantId } = req.body;
   const correlationId = req.correlationId;
 
@@ -180,24 +175,16 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 
   try {
-    const prisma = req.container.resolve('prisma');
-    const jwtService = req.container.resolve('jwtService');
-    const permissionService = req.container.resolve('permissionService');
-    const passwordService = req.container.resolve('passwordService');
-    const loggerService = req.container.resolve('loggerService');
-    const databaseService = req.container.resolve('databaseService');
+    // ✅ SIMPLE DI RESOLUTION - Direct AuthService resolution
+    console.log('🔍 Resolving AuthService from container...');
+    const authService = req.container.resolve('authService') as AuthService;
 
-    const userRepository = new UserRepository(prisma);
+    if (!authService) {
+      console.error('🚨 AuthService not resolved from container!');
+      throw new AuthenticationError('Service configuration error', correlationId);
+    }
 
-    const authService = new AuthService(
-      userRepository,
-      jwtService,
-      permissionService,
-      passwordService,
-      loggerService,
-      databaseService
-    );
-
+    console.log('✅ AuthService resolved successfully');
     await authService.initiatePasswordReset(email, restaurantId);
 
     res.json({
@@ -210,40 +197,85 @@ router.post('/forgot-password', async (req, res, next) => {
   }
 });
 
-// POST /api/v1/auth/reset-password
-// Complete password reset
-router.post('/reset-password', async (req, res, next) => {
-  const { token, newPassword, restaurantId } = req.body;
+// POST /api/v1/auth/reset-password/confirm
+// Password reset confirmation
+router.post('/reset-password/confirm', async (req, res, next) => {
+  const { token, newPassword } = req.body;
   const correlationId = req.correlationId;
 
-  if (!token || !newPassword || !restaurantId) {
-    return next(new BusinessRuleError('Token, new password, and restaurant ID are required', correlationId));
+  if (!token || !newPassword) {
+    return next(new BusinessRuleError('Token and new password are required', correlationId));
   }
 
   try {
-    const prisma = req.container.resolve('prisma');
-    const jwtService = req.container.resolve('jwtService');
-    const permissionService = req.container.resolve('permissionService');
-    const passwordService = req.container.resolve('passwordService');
-    const loggerService = req.container.resolve('loggerService');
-    const databaseService = req.container.resolve('databaseService');
+    // ✅ SIMPLE DI RESOLUTION - Direct AuthService resolution
+    console.log('🔍 Resolving AuthService from container...');
+    const authService = req.container.resolve('authService') as AuthService;
 
-    const userRepository = new UserRepository(prisma);
+    if (!authService) {
+      console.error('🚨 AuthService not resolved from container!');
+      throw new AuthenticationError('Service configuration error', correlationId);
+    }
 
-    const authService = new AuthService(
-      userRepository,
-      jwtService,
-      permissionService,
-      passwordService,
-      loggerService,
-      databaseService
-    );
-
+    console.log('✅ AuthService resolved successfully');
     await authService.resetPassword(token, newPassword);
 
     res.json({
       success: true,
       message: 'Password reset successfully',
+      correlationId
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/v1/auth/status
+// Check authentication status (public endpoint for frontend integration)
+router.get('/status', async (req, res, next) => {
+  const correlationId = req.correlationId;
+
+  try {
+    // Check if there's a valid authorization header
+    const authHeader = req.headers.authorization;
+    let isAuthenticated = false;
+    let user = null;
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const authService = req.container.resolve('authService') as AuthService;
+
+        if (authService) {
+          const decoded = await authService.verifyToken(token);
+          if (decoded) {
+            isAuthenticated = true;
+            user = {
+              id: decoded.userId,
+              email: decoded.email,
+              role: decoded.role,
+              restaurantId: decoded.restaurantId
+            };
+          }
+        }
+      } catch (error) {
+        // Token is invalid, but don't throw error - just return unauthenticated status
+        console.log('Invalid token provided:', error.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        isAuthenticated,
+        user,
+        features: {
+          authentication: true,
+          userManagement: true,
+          roleHierarchy: true,
+          permissions: true
+        }
+      },
       correlationId
     });
   } catch (error) {

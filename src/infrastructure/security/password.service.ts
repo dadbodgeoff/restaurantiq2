@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 
 export class PasswordService {
@@ -9,7 +9,16 @@ export class PasswordService {
   }
 
   async verifyPassword(password: string, hash: string): Promise<boolean> {
-    return await bcrypt.compare(password, hash);
+    console.log('🔐 Password verification:', {
+      password: password.substring(0, 3) + '***',
+      hash: hash.substring(0, 10) + '***',
+      hashLength: hash.length
+    });
+    
+    const result = await bcrypt.compare(password, hash);
+    console.log('🔐 Password verification result:', result);
+    
+    return result;
   }
 
   validatePasswordStrength(password: string): boolean {

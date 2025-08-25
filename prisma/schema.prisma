@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "darwin-arm64", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
@@ -8,84 +9,61 @@ datasource db {
 }
 
 model Restaurant {
-  id        String   @id @default(cuid())
+  id        String          @id @default(cuid())
   name      String
-  timezone  String   @default("America/New_York")
-  locale    String   @default("en-US")
-  currency  String   @default("USD")
-  isActive  Boolean  @default(true)
-  settings  Json     @default("{}")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations - Restaurant Isolation
-  users     User[]
+  timezone  String          @default("America/New_York")
+  locale    String          @default("en-US")
+  currency  String          @default("USD")
+  isActive  Boolean         @default(true)
+  settings  Json            @default("{}")
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  snapshots DailySnapshot[]
   menuItems MenuItem[]
   prepDays  PrepDay[]
-  snapshots DailySnapshot[]
+  prepItems PrepItem[]
+  users     User[]
 
   @@map("restaurants")
 }
 
 model User {
-  id           String     @id @default(cuid())
-  email        String     @unique
-  firstName    String
-  lastName     String
-  password     String?    // Hashed password field
-  role         UserRole
-  isActive     Boolean    @default(true)
-  lastLoginAt  DateTime?
-  failedLoginAttempts Int @default(0)  // Security tracking
-  lockedUntil DateTime?                // Account lockout
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-
-  // Restaurant Isolation - Every user belongs to one restaurant
-  restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-
-  // Permission System Relations
-  userPermissions UserPermission[]
-  assignedBy      User?   @relation("RoleAssignments", fields: [assignedById], references: [id])
-  assignedUsers   User[]  @relation("RoleAssignments")
-  assignedById    String?
-
-  // Permission Grants (grantedBy relation)
-  grantedPermissions UserPermission[] @relation("PermissionGrants")
-
-  // Password Resets
-  passwordResets PasswordReset[]
+  id                  String           @id @default(cuid())
+  email               String           @unique
+  firstName           String
+  lastName            String
+  password            String?
+  role                UserRole
+  isActive            Boolean          @default(true)
+  lastLoginAt         DateTime?
+  failedLoginAttempts Int              @default(0)
+  lockedUntil         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  restaurantId        String
+  assignedById        String?
+  passwordResets      PasswordReset[]
+  grantedPermissions  UserPermission[] @relation("PermissionGrants")
+  userPermissions     UserPermission[]
+  assignedBy          User?            @relation("RoleAssignments", fields: [assignedById], references: [id])
+  assignedUsers       User[]           @relation("RoleAssignments")
+  restaurant          Restaurant       @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, email])
   @@index([restaurantId, isActive])
-  @@index([email])  // For faster email lookups
+  @@index([email])
   @@map("users")
 }
 
-enum UserRole {
-  OWNER
-  ADMIN
-  MANAGER
-  STAFF
-  GUEST
-}
-
-// ==========================================
-// HIERARCHICAL PERMISSION SYSTEM
-// ==========================================
-
 model Permission {
-  id          String   @id @default(cuid())
-  name        String   @unique // e.g., 'users.create', 'prep.finalize'
-  category    String   // e.g., 'users', 'prep', 'menu'
-  action      String   // e.g., 'create', 'read', 'update', 'delete'
-  description String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
+  id              String           @id @default(cuid())
+  name            String           @unique
+  category        String
+  action          String
+  description     String?
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   rolePermissions RolePermission[]
   userPermissions UserPermission[]
 
@@ -98,8 +76,8 @@ model RolePermission {
   id           String     @id @default(cuid())
   role         UserRole
   permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
   createdAt    DateTime   @default(now())
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
   @@unique([role, permissionId])
   @@index([role])
@@ -110,14 +88,14 @@ model RolePermission {
 model UserPermission {
   id           String     @id @default(cuid())
   userId       String
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   permissionId String
-  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-  grantedById  String?    // User who granted this permission
-  grantedBy    User?      @relation("PermissionGrants", fields: [grantedById], references: [id])
+  grantedById  String?
   grantedAt    DateTime   @default(now())
-  expiresAt    DateTime?  // For temporary permissions
+  expiresAt    DateTime?
   isActive     Boolean    @default(true)
+  grantedBy    User?      @relation("PermissionGrants", fields: [grantedById], references: [id])
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionId])
   @@index([userId])
@@ -130,35 +108,30 @@ model UserPermission {
 model PasswordReset {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   token     String   @unique
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
   @@index([expiresAt])
   @@map("password_resets")
 }
 
-// Menu Management - Restaurant Scoped
 model MenuItem {
-  id           String   @id @default(cuid())
+  id           String        @id @default(cuid())
   name         String
   description  String?
   category     String
-  unit         String   @default("each")
+  unit         String        @default("each")
   unitCost     Float?
   sellingPrice Float?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Restaurant Isolation - Every menu item belongs to one restaurant
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-
-  // Relations
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   prepDayItems PrepDayItem[]
 
   @@unique([restaurantId, name])
@@ -166,21 +139,16 @@ model MenuItem {
   @@map("menu_items")
 }
 
-// PREP Management - Restaurant Scoped
 model PrepDay {
-  id         String   @id @default(cuid())
-  date       DateTime // Business date
-  isFinalized Boolean @default(false)
-  finalizedAt DateTime?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Restaurant Isolation - Every prep day belongs to one restaurant
+  id           String        @id @default(cuid())
+  date         DateTime
+  isFinalized  Boolean       @default(false)
+  finalizedAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-
-  // Relations
-  items PrepDayItem[]
+  items        PrepDayItem[]
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, date])
   @@index([restaurantId, isFinalized])
@@ -188,46 +156,97 @@ model PrepDay {
 }
 
 model PrepDayItem {
-  id          String     @id @default(cuid())
-  par         Int        // Target amount
-  onHand      Int        // Current amount
-  amountToPrep Int       // Calculated: par - onHand
-  status      PrepStatus @default(ACTIVE)
-  notes       String?
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  // Relations with Restaurant Isolation
-  prepDayId   String
-  prepDay     PrepDay   @relation(fields: [prepDayId], references: [id], onDelete: Cascade)
-  menuItemId  String
-  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  id           String     @id @default(cuid())
+  par          Int
+  onHand       Int
+  amountToPrep Int
+  status       PrepStatus @default(ACTIVE)
+  notes        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  prepDayId    String
+  menuItemId   String
+  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  prepDay      PrepDay    @relation(fields: [prepDayId], references: [id], onDelete: Cascade)
 
   @@index([prepDayId])
   @@index([menuItemId])
   @@map("prep_day_items")
 }
 
-// Daily Snapshots - Restaurant Scoped with Integrity
-model DailySnapshot {
-  id           String          @id @default(cuid())
-  snapshotDate DateTime        // Business date (EST)
-  status       SnapshotStatus  @default(DRAFT)
-  version      Int             @default(1)
-  sha256       String?         // Cryptographic hash
-  metadata     Json            // { prepItemsCount, menuItemsCount, totalValue }
-  data         Json            // Complete snapshot data
-  finalizedAt  DateTime?
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+// Missing models referenced by prep.repository.ts
+model PrepItem {
+  id                String   @id @default(cuid())
+  name              String
+  category          String
+  unit              String   @default("each")
+  currentStock      Float    @default(0)
+  minThreshold      Float
+  maxCapacity       Float
+  unitCost          Float
+  supplier          String?
+  prepTimeHours     Float    @default(2)
+  isActive          Boolean  @default(true)
+  restaurantId      String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  lastStockUpdate   DateTime?
 
-  // Restaurant Isolation - Every snapshot belongs to one restaurant
+  // Relations
+  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  stockHistory      PrepStockHistory[]
+
+  // Indexes
+  @@unique([name, restaurantId], name: "unique_prep_item_name_per_restaurant")
+  @@index([restaurantId, category])
+  @@index([restaurantId, isActive])
+  @@map("prep_items")
+}
+
+model PrepStockHistory {
+  id            String   @id @default(cuid())
+  prepItemId    String
+  quantity      Float
+  unit          String
+  previousStock Float
+  newStock      Float
+  reason        String?
+  updatedBy     String?  // User ID
+  createdAt     DateTime @default(now())
+
+  // Relations
+  prepItem      PrepItem @relation(fields: [prepItemId], references: [id], onDelete: Cascade)
+
+  // Indexes
+  @@index([prepItemId, createdAt])
+  @@map("prep_stock_history")
+}
+
+model DailySnapshot {
+  id           String         @id @default(cuid())
+  snapshotDate DateTime
+  status       SnapshotStatus @default(DRAFT)
+  version      Int            @default(1)
+  sha256       String?
+  metadata     Json
+  data         Json
+  finalizedAt  DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
   restaurantId String
-  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant     @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   @@unique([restaurantId, snapshotDate])
   @@index([restaurantId, status])
   @@map("daily_snapshots")
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MANAGER
+  STAFF
+  GUEST
 }
 
 enum PrepStatus {

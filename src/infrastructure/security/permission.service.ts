@@ -24,7 +24,7 @@ export class PermissionService {
 
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly logger: LoggerService
+    private readonly loggerService: LoggerService
   ) {}
 
   // ==========================================
@@ -198,7 +198,7 @@ export class PermissionService {
       }
     });
 
-    this.logger.info('Role Assignment', `Role assigned successfully: ${assignerId} assigned ${newRole} to ${targetUserId}`, {
+    this.loggerService.info('Role Assignment', `Role assigned successfully: ${assignerId} assigned ${newRole} to ${targetUserId}`, {
       assignerId,
       assignerRole: assigner.role,
       targetUserId,
@@ -280,7 +280,7 @@ export class PermissionService {
       }
     });
 
-    this.logger.info('Permission Grant', `Permission granted successfully: ${granterId} granted ${permission} to ${targetUserId}`, {
+    this.loggerService.info('Permission Grant', `Permission granted successfully: ${granterId} granted ${permission} to ${targetUserId}`, {
       granterId,
       targetUserId,
       permission,
@@ -331,7 +331,7 @@ export class PermissionService {
       }
     });
 
-    this.logger.info('Permission Revoke', `Permission revoked successfully: ${revokerId} revoked ${permission} from ${targetUserId}`, {
+    this.loggerService.info('Permission Revoke', `Permission revoked successfully: ${revokerId} revoked ${permission} from ${targetUserId}`, {
       revokerId,
       targetUserId,
       permission,
@@ -368,7 +368,7 @@ export class PermissionService {
         }
       });
 
-      this.logger.warn('Account Lock', `Account locked due to failed login attempts: ${userId}`, {
+      this.loggerService.warn('Account Lock', `Account locked due to failed login attempts: ${userId}`, {
         userId,
         email: user.email,
         correlationId: 'unknown'
@@ -493,7 +493,7 @@ export class PermissionService {
       });
     }
 
-    this.logger.info('Permission Init', `Default permissions initialized: ${defaultPermissions.length} permissions created`, {
+    this.loggerService.info('Permission Init', `Default permissions initialized: ${defaultPermissions.length} permissions created`, {
       count: defaultPermissions.length,
       correlationId: 'system'
     });
@@ -531,7 +531,7 @@ export class PermissionService {
       }
     }
 
-    this.logger.info('Role Sync', 'Role permissions synchronized successfully', {
+    this.loggerService.info('Role Sync', 'Role permissions synchronized successfully', {
       correlationId: 'system'
     });
   }

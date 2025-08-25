@@ -129,6 +129,8 @@ export const DomainEventTypes = {
   PREP_DAY_CREATED: 'prep.day.created',
   PREP_DAY_FINALIZED: 'prep.day.finalized',
   PREP_ITEM_UPDATED: 'prep.item.updated',
+  PREP_ITEM_CREATED: 'prep.item.created',
+  PREP_STOCK_UPDATED: 'prep.stock.updated',
 
   // Revenue events
   REVENUE_SNAPSHOT_CREATED: 'revenue.snapshot.created',

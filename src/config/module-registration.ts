@@ -4,19 +4,11 @@
 import { moduleRegistry } from './module-registry';
 
 // Import your new modules here as you create them
-// import { createMenuModule } from '../domains/menu/menu.module';
-// import { createPrepModule } from '../domains/prep/prep.module';
 // import { createRevenueModule } from '../domains/revenue/revenue.module';
 
-export const registerAllModules = (_container: unknown): void => {
+export const registerAllModules = (container: unknown): void => {
   // 🏪 Restaurant Module (Core - already registered in container.ts)
   // This is the foundation module with restaurant/user management
-
-  // 🍽️ Menu Module - Uncomment when ready
-  // moduleRegistry.register(createMenuModule(container));
-
-  // 📋 PREP Module - Uncomment when ready
-  // moduleRegistry.register(createPrepModule(container));
 
   // 💰 Revenue Module - Uncomment when ready
   // moduleRegistry.register(createRevenueModule(container));

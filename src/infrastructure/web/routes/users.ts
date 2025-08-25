@@ -26,8 +26,8 @@ router.get('/restaurants/:restaurantId/users',
         search
       } = req.query;
 
-      const userRepository = req.container.resolve('userRepository');
-      const permissionService = req.container.resolve('permissionService');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
 
       // Build filter
       const filter: any = { restaurantId };
@@ -117,7 +117,7 @@ router.post('/restaurants/:restaurantId/users',
       }
 
       // Check if user can assign the requested role
-      const permissionService = req.container.resolve('permissionService');
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
       const canAssign = await permissionService.canAssignRole(req.user!.id, role as UserRole);
 
       if (!canAssign) {
@@ -128,7 +128,7 @@ router.post('/restaurants/:restaurantId/users',
       }
 
       // Create the user
-      const authService = req.container.resolve('authService');
+      const authService = req.container.resolve('authService') as any; // AuthService
       const newUser = await authService.register({
         email,
         firstName,
@@ -176,8 +176,8 @@ router.get('/restaurants/:restaurantId/users/:userId',
         throw new BusinessRuleError('Can only access your own profile', req.correlationId);
       }
 
-      const userRepository = req.container.resolve('userRepository');
-      const permissionService = req.container.resolve('permissionService');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
 
       const user = await userRepository.findById(userId);
       if (!user || user.restaurantId !== restaurantId) {
@@ -221,8 +221,8 @@ router.put('/restaurants/:restaurantId/users/:userId',
       const { restaurantId, userId } = req.params;
       const updates = req.body;
 
-      const userRepository = req.container.resolve('userRepository');
-      const permissionService = req.container.resolve('permissionService');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
 
       const user = await userRepository.findById(userId);
       if (!user || user.restaurantId !== restaurantId) {
@@ -305,8 +305,8 @@ router.put('/restaurants/:restaurantId/users/:userId/role',
         throw new BusinessRuleError('Role is required', req.correlationId);
       }
 
-      const userRepository = req.container.resolve('userRepository');
-      const permissionService = req.container.resolve('permissionService');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
 
       const user = await userRepository.findById(userId);
       if (!user || user.restaurantId !== restaurantId) {
@@ -351,7 +351,7 @@ router.delete('/restaurants/:restaurantId/users/:userId',
     try {
       const { restaurantId, userId } = req.params;
 
-      const userRepository = req.container.resolve('userRepository');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
 
       const user = await userRepository.findById(userId);
       if (!user || user.restaurantId !== restaurantId) {
@@ -390,8 +390,8 @@ router.post('/restaurants/:restaurantId/users/:userId/reset-password',
     try {
       const { restaurantId, userId } = req.params;
 
-      const userRepository = req.container.resolve('userRepository');
-      const authService = req.container.resolve('authService');
+      const userRepository = req.container.resolve('userRepository') as any; // UserRepository
+      const authService = req.container.resolve('authService') as any; // AuthService
 
       const user = await userRepository.findById(userId);
       if (!user || user.restaurantId !== restaurantId) {
@@ -420,7 +420,7 @@ router.get('/restaurants/:restaurantId/roles',
   requirePermission(Permissions.USERS_READ),
   async (req, res) => {
     try {
-      const permissionService = req.container.resolve('permissionService');
+      const permissionService = req.container.resolve('permissionService') as any; // PermissionService
 
       // Get all available roles
       const allRoles = Object.values(UserRole);
