@@ -70,3 +70,16 @@ jspm_packages/
 prisma/migrations/*/migration.sql
 !prisma/schema.prisma
 !prisma/migrations/migration_lock.toml
+
+# Database runtime data (should not be committed)
+data/postgres/
+data/redis/
+data/grafana/
+data/prometheus/
+
+# Docker volumes
+backups/
+
+# Frontend build artifacts
+frontend/.next/
+frontend/out/

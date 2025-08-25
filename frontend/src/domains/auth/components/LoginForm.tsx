@@ -13,16 +13,30 @@ interface LoginFormProps {
   }>;
 }
 
+// 🔍 DEBUG: LoginForm component logging
+console.log('🔍 DEBUG: LoginForm component starting render');
+
 export function LoginForm({ onSubmit }: LoginFormProps) {
+  console.log('🔍 DEBUG: LoginForm props received:', { onSubmit: typeof onSubmit });
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     restaurantId: ''
   });
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showRestaurantSelection, setShowRestaurantSelection] = useState(false);
   const [availableRestaurants, setAvailableRestaurants] = useState<Array<{ id: string; name: string }>>([]);
+
+  console.log('🔍 DEBUG: LoginForm initial state:', {
+    formData,
+    isLoading,
+    error,
+    showRestaurantSelection,
+    availableRestaurantsCount: availableRestaurants.length
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,13 +73,48 @@ export function LoginForm({ onSubmit }: LoginFormProps) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+    console.log('🔍 DEBUG: handleChange called:', {
+      targetName: e.target.name,
+      targetId: e.target.id,
+      targetClass: e.target.className,
+      value: e.target.value,
+      type: e.target.type,
+      currentFormData: formData,
+      eventType: e.type,
+      fullTarget: {
+        name: e.target.name,
+        id: e.target.id,
+        value: e.target.value,
+        type: e.target.type,
+        tagName: e.target.tagName,
+        className: e.target.className
+      }
+    });
+
+    setFormData(prev => {
+      const fieldName = e.target.name || e.target.id || 'unknown';
+      console.log('🔍 DEBUG: Using field name:', fieldName);
+
+      const newData = {
+        ...prev,
+        [fieldName]: e.target.value
+      };
+      console.log('🔍 DEBUG: State updated:', newData);
+      console.log('🔍 DEBUG: Component will re-render with new data');
+      return newData;
+    });
   };
 
 
+
+  // 🔍 DEBUG: Component about to render
+  console.log('🔍 DEBUG: LoginForm rendering with:', {
+    formData,
+    isLoading,
+    error,
+    showRestaurantSelection,
+    renderTime: new Date().toISOString()
+  });
 
   return (
     <Card className="max-w-md w-full space-y-8 p-8">

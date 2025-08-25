@@ -7,6 +7,7 @@ export async function POST(request: NextRequest) {
 
     // Use your actual backend URL (port 3000)
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+
     const backendResponse = await fetch(`${backendUrl}/api/v1/restaurants/setup-complete`, {
       method: 'POST',
       headers: {

@@ -4,6 +4,9 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import { v4 as uuidv4 } from 'uuid';
+import { asValue, createContainer } from 'awilix';
+import { AuthService } from './domains/auth/services/auth.service';
+import { UserRepository } from './domains/restaurant/repositories/user.repository';
 
 // Load environment variables
 dotenv.config();
@@ -15,6 +18,13 @@ import { container } from './config/container';
 // Infrastructure
 import { DatabaseService } from './infrastructure/database/database.service';
 import { LoggerService } from './infrastructure/logging/logger.service';
+import { PermissionService } from './infrastructure/security/permission.service';
+
+// Domain Services
+import { RestaurantService } from './domains/restaurant/services/restaurant.service';
+
+// Repositories
+import { RestaurantRepository } from './domains/restaurant/repositories/restaurant.repository';
 
 // Middleware
 import { errorHandler } from './infrastructure/web/middleware/error-handler';
@@ -86,9 +96,68 @@ async function bootstrap() {
 
     // Request correlation ID and container scope
     app.use((req, res, next) => {
-      req.correlationId = req.headers['x-correlation-id'] as string || uuidv4();
-      req.container = container.createScope();  // Create proper request scope
-      next();
+      try {
+        req.correlationId = req.headers['x-correlation-id'] as string || uuidv4();
+        // Create scoped container for per-request services
+        const scopedContainer = container.createScope();
+
+        // Manually create repositories to avoid Awilix + Prisma proxy conflicts
+        const prismaClient = container.resolve('prisma');
+        const userRepositoryInstance = new UserRepository(prismaClient);
+        const restaurantRepositoryInstance = new RestaurantRepository(prismaClient);
+
+        // Register manually created repositories in scoped container
+        scopedContainer.register({
+          userRepository: asValue(userRepositoryInstance),
+          restaurantRepository: asValue(restaurantRepositoryInstance)
+        });
+
+        // Manually create PermissionService with proper dependencies
+        const loggerService = scopedContainer.resolve('loggerService');
+        const permissionServiceInstance = new PermissionService(
+          prismaClient,
+          loggerService
+        );
+
+        // Register PermissionService in scoped container
+        scopedContainer.register({
+          permissionService: asValue(permissionServiceInstance)
+        });
+
+        // Manually create AuthService with proper dependencies
+        const jwtService = scopedContainer.resolve('jwtService');
+        const passwordService = scopedContainer.resolve('passwordService');
+        const databaseService = scopedContainer.resolve('databaseService');
+
+        // Create AuthService instance with all dependencies
+        const authServiceInstance = new AuthService(
+          userRepositoryInstance,
+          jwtService,
+          permissionServiceInstance,
+          passwordService,
+          loggerService,
+          databaseService
+        );
+
+        // Manually create RestaurantService with proper dependencies
+        const restaurantRepository = scopedContainer.resolve('restaurantRepository');
+        const restaurantServiceInstance = new RestaurantService(
+          restaurantRepository,
+          userRepositoryInstance
+        );
+
+        // Override any existing service registrations
+        scopedContainer.register({
+          authService: asValue(authServiceInstance),
+          restaurantService: asValue(restaurantServiceInstance)
+        });
+
+        req.container = scopedContainer;
+        next();
+      } catch (error) {
+        console.error('🚨 Scoped container middleware error:', error);
+        next(error);
+      }
     });
 
     // Request logging

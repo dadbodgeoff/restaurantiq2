@@ -247,11 +247,11 @@ router.get('/status', async (req, res, next) => {
         const authService = req.container.resolve('authService') as AuthService;
 
         if (authService) {
-          const decoded = await authService.verifyToken(token);
+          const decoded = await authService.validateToken(token);
           if (decoded) {
             isAuthenticated = true;
             user = {
-              id: decoded.userId,
+              id: decoded.id,
               email: decoded.email,
               role: decoded.role,
               restaurantId: decoded.restaurantId
@@ -260,7 +260,7 @@ router.get('/status', async (req, res, next) => {
         }
       } catch (error) {
         // Token is invalid, but don't throw error - just return unauthenticated status
-        console.log('Invalid token provided:', error.message);
+        console.log('Invalid token provided:', error instanceof Error ? error.message : String(error));
       }
     }
 

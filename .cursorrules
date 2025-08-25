@@ -231,10 +231,41 @@ container.register({
   restaurantRepository: asClass(RestaurantRepository).scoped(),
 });
 
-// Services (scoped for per-request)
+// Simple Services (1-3 dependencies) - Use auto-resolution
 container.register({
-  restaurantService: asClass(RestaurantService).scoped(),
-  authService: asClass(AuthService).scoped(),
+  restaurantService: asClass(RestaurantService).scoped(), // ✅ Works with auto-resolution
+});
+
+// Complex Services with Multiple Dependencies (4+ services)
+// Use manual instantiation in scoped container middleware
+container.register({
+  // authService created manually in index.ts scoped container middleware
+});
+```
+
+### Complex Service Instantiation Pattern
+```typescript
+// For services with 4+ dependencies that fail auto-resolution
+// Implement in scoped container middleware (src/index.ts)
+
+app.use((req, res, next) => {
+  const scopedContainer = container.createScope();
+
+  // Resolve all dependencies explicitly
+  const dep1 = scopedContainer.resolve('service1');
+  const dep2 = scopedContainer.resolve('service2');
+  // ... resolve all required dependencies
+
+  // Create service instance manually
+  const complexService = new ComplexService(dep1, dep2, ...);
+
+  // Register in scoped container
+  scopedContainer.register({
+    complexService: asValue(complexService)
+  });
+
+  req.container = scopedContainer;
+  next();
 });
 ```
 

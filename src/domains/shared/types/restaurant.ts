@@ -83,17 +83,3 @@ export interface UserPermission {
 }
 
 // Business Logic Types
-export interface MenuItem {
-  id: string;
-  name: string;
-  description?: string;
-  category: string;
-  unit: string;
-  unitCost?: number;
-  sellingPrice?: number;
-  isActive: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  restaurantId: string;
-  restaurant?: Restaurant;
-}

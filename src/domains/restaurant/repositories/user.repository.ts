@@ -3,8 +3,30 @@ import { User } from '../../shared/types/restaurant';
 import { BaseRepository } from '../../shared/base-repository';
 
 export class UserRepository extends BaseRepository {
+  private prismaClient: PrismaClient;
+
   constructor(prisma: PrismaClient) {
     super(prisma);
+    // Store direct reference - avoid Awilix interception
+    this.prismaClient = prisma;
+  }
+
+  /**
+   * Standalone execution function to avoid Awilix interception
+   */
+  private static async executeQueryStandalone<T>(
+    prisma: PrismaClient,
+    operation: (prisma: PrismaClient) => Promise<T>
+  ): Promise<T> {
+    try {
+      return await operation(prisma);
+    } catch (error) {
+      console.error(`❌ UserRepository standalone operation failed:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 
   async findById(userId: string): Promise<User | null> {
@@ -13,7 +35,7 @@ export class UserRepository extends BaseRepository {
     return this.executeQuery(async () => {
       this.logOperation('findById', { userId });
 
-      const user = await this.prisma.user.findUnique({
+      const user = await this.prismaClient.user.findUnique({
         where: { id: userId },
       });
 
@@ -52,7 +74,7 @@ export class UserRepository extends BaseRepository {
       const sanitizedEmail = email.trim().toLowerCase();
 
       // Try exact match first
-      let user = await this.prisma.user.findFirst({
+      let user = await this.prismaClient.user.findFirst({
         where: {
           restaurantId,
           email: sanitizedEmail,
@@ -61,7 +83,7 @@ export class UserRepository extends BaseRepository {
 
       // If no exact match, try case-insensitive search
       if (!user) {
-        user = await this.prisma.user.findFirst({
+        user = await this.prismaClient.user.findFirst({
           where: {
             restaurantId,
             email: {
@@ -96,15 +118,14 @@ export class UserRepository extends BaseRepository {
   async findByEmail(email: string): Promise<User[]> {
     this.validateRequiredString(email, 'Email');
 
-    return this.executeQuery(async () => {
-      this.logOperation('findByEmail', { email });
+    // Use standalone function to completely avoid Awilix interception
+    return UserRepository.executeQueryStandalone(
+      (this as any).prisma,
+      async (prisma) => {
+        // Log without using this.logOperation to avoid interception
+        console.log(`🔍 ${this.constructor.name}.findByEmail`, { email });
 
-      // Verify prisma.user exists
-      if (!this.prisma?.user) {
-        throw new Error('Prisma user model not available');
-      }
-
-      const users = await this.prisma.user.findMany({
+        const users = await prisma.user.findMany({
         where: {
           email: email.toLowerCase().trim(),
           isActive: true,
@@ -150,7 +171,7 @@ export class UserRepository extends BaseRepository {
     return this.executeQuery(async () => {
       this.logOperation('findByRestaurantId', { restaurantId });
 
-      const users = await this.prisma.user.findMany({
+      const users = await this.prismaClient.user.findMany({
         where: { restaurantId },
         orderBy: { createdAt: 'asc' },
       });
@@ -192,7 +213,7 @@ export class UserRepository extends BaseRepository {
     return this.executeQuery(async () => {
       this.logOperation('create', { email: data.email, restaurantId: data.restaurantId });
 
-      const user = await this.prisma.user.create({
+      const user = await this.prismaClient.user.create({
         data: {
           email: data.email,
           firstName: data.firstName,
@@ -249,7 +270,7 @@ export class UserRepository extends BaseRepository {
         updateData.role = data.role;
       }
 
-      const user = await this.prisma.user.update({
+      const user = await this.prismaClient.user.update({
         where: { id: userId },
         data: updateData,
       });
@@ -279,7 +300,7 @@ export class UserRepository extends BaseRepository {
     return this.executeQuery(async () => {
       this.logOperation('delete', { userId });
 
-      await this.prisma.user.delete({
+      await this.prismaClient.user.delete({
         where: { id: userId },
       });
     }, 'delete');

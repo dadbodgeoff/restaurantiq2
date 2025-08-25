@@ -1,4 +1,6 @@
 // Frontend-compatible auth service that makes API calls
+import { config } from '@/lib/config';
+
 export interface User {
   id: string;
   email: string;
@@ -38,16 +40,41 @@ export interface RegisterRequest {
   restaurantId: string;
 }
 
+// 🔍 DEBUG: AuthService logging
+console.log('🔍 DEBUG: AuthService class definition loaded');
+
 export class AuthService {
-  private baseUrl = '/api/v1';
+  private baseUrl = config.API_URL;
+
+  constructor() {
+    console.log('🔍 DEBUG: AuthService constructor called');
+    console.log('🔍 DEBUG: Config API_URL available:', typeof config !== 'undefined');
+    console.log('🔍 DEBUG: Config API_URL value:', config?.API_URL);
+    console.log('🔍 DEBUG: Final baseUrl:', this.baseUrl);
+  }
 
   async login(credentials: { email: string; password: string; restaurantId?: string }): Promise<LoginResponse> {
+    console.log('🔍 DEBUG: AuthService login called with:', {
+      email: credentials.email,
+      hasPassword: !!credentials.password,
+      restaurantId: credentials.restaurantId,
+      baseUrl: this.baseUrl,
+      fullUrl: `${this.baseUrl}/auth/login`
+    });
+
     const response = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(credentials),
+    });
+
+    console.log('🔍 DEBUG: AuthService response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries()),
+      ok: response.ok
     });
 
     if (!response.ok) {

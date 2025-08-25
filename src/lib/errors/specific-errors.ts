@@ -69,18 +69,7 @@ export class UserNotFoundError extends BaseApplicationError {
   }
 }
 
-export class MenuItemNotFoundError extends BaseApplicationError {
-  constructor(menuItemId: string, correlationId: string) {
-    super(
-      ErrorCategory.NOT_FOUND,
-      'MENU_ITEM_NOT_FOUND',
-      404,
-      `Menu item with ID ${menuItemId} not found`,
-      correlationId,
-      { menuItemId }
-    );
-  }
-}
+
 
 // Conflict Errors (409)
 export class ConflictError extends BaseApplicationError {

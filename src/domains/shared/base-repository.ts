@@ -28,6 +28,24 @@ export abstract class BaseRepository {
   }
 
   /**
+   * Execute database operation with prisma client passed to avoid Awilix interception
+   */
+  protected async executeQueryWithPrisma<T>(
+    operation: (prisma: PrismaClient) => Promise<T>,
+    operationName: string
+  ): Promise<T> {
+    try {
+      return await operation(this.prisma);
+    } catch (error) {
+      console.error(`❌ ${this.constructor.name}.${operationName} failed:`, {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
+  }
+
+  /**
    * Validate required string parameters
    */
   protected validateRequiredString(value: string, fieldName: string): void {
@@ -37,14 +55,16 @@ export abstract class BaseRepository {
   }
 
   /**
-   * Validate UUID format
+   * Validate ID format (supports both UUID and CUID formats)
    */
   protected validateId(id: string, entityName: string): void {
     this.validateRequiredString(id, `${entityName} ID`);
 
-    // Basic UUID format validation
+    // Support both UUID and CUID formats
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(id)) {
+    const cuidRegex = /^[a-z0-9]{25}$/i; // CUID format: 25 character alphanumeric
+
+    if (!uuidRegex.test(id) && !cuidRegex.test(id)) {
       throw new Error(`Invalid ${entityName} ID format`);
     }
   }

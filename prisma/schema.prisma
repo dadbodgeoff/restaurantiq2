@@ -19,9 +19,6 @@ model Restaurant {
   createdAt DateTime        @default(now())
   updatedAt DateTime        @updatedAt
   snapshots DailySnapshot[]
-  menuItems MenuItem[]
-  prepDays  PrepDay[]
-  prepItems PrepItem[]
   users     User[]
 
   @@map("restaurants")
@@ -119,109 +116,6 @@ model PasswordReset {
   @@map("password_resets")
 }
 
-model MenuItem {
-  id           String        @id @default(cuid())
-  name         String
-  description  String?
-  category     String
-  unit         String        @default("each")
-  unitCost     Float?
-  sellingPrice Float?
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  restaurantId String
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  prepDayItems PrepDayItem[]
-
-  @@unique([restaurantId, name])
-  @@index([restaurantId, isActive, category])
-  @@map("menu_items")
-}
-
-model PrepDay {
-  id           String        @id @default(cuid())
-  date         DateTime
-  isFinalized  Boolean       @default(false)
-  finalizedAt  DateTime?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  restaurantId String
-  items        PrepDayItem[]
-  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-
-  @@unique([restaurantId, date])
-  @@index([restaurantId, isFinalized])
-  @@map("prep_days")
-}
-
-model PrepDayItem {
-  id           String     @id @default(cuid())
-  par          Int
-  onHand       Int
-  amountToPrep Int
-  status       PrepStatus @default(ACTIVE)
-  notes        String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  prepDayId    String
-  menuItemId   String
-  menuItem     MenuItem   @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
-  prepDay      PrepDay    @relation(fields: [prepDayId], references: [id], onDelete: Cascade)
-
-  @@index([prepDayId])
-  @@index([menuItemId])
-  @@map("prep_day_items")
-}
-
-// Missing models referenced by prep.repository.ts
-model PrepItem {
-  id                String   @id @default(cuid())
-  name              String
-  category          String
-  unit              String   @default("each")
-  currentStock      Float    @default(0)
-  minThreshold      Float
-  maxCapacity       Float
-  unitCost          Float
-  supplier          String?
-  prepTimeHours     Float    @default(2)
-  isActive          Boolean  @default(true)
-  restaurantId      String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  lastStockUpdate   DateTime?
-
-  // Relations
-  restaurant        Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  stockHistory      PrepStockHistory[]
-
-  // Indexes
-  @@unique([name, restaurantId], name: "unique_prep_item_name_per_restaurant")
-  @@index([restaurantId, category])
-  @@index([restaurantId, isActive])
-  @@map("prep_items")
-}
-
-model PrepStockHistory {
-  id            String   @id @default(cuid())
-  prepItemId    String
-  quantity      Float
-  unit          String
-  previousStock Float
-  newStock      Float
-  reason        String?
-  updatedBy     String?  // User ID
-  createdAt     DateTime @default(now())
-
-  // Relations
-  prepItem      PrepItem @relation(fields: [prepItemId], references: [id], onDelete: Cascade)
-
-  // Indexes
-  @@index([prepItemId, createdAt])
-  @@map("prep_stock_history")
-}
-
 model DailySnapshot {
   id           String         @id @default(cuid())
   snapshotDate DateTime
@@ -247,11 +141,6 @@ enum UserRole {
   MANAGER
   STAFF
   GUEST
-}
-
-enum PrepStatus {
-  ACTIVE
-  INACTIVE
 }
 
 enum SnapshotStatus {

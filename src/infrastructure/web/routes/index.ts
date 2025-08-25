@@ -54,7 +54,7 @@ export function setupRoutes(): Router {
         error: {
           code: 'DATABASE_ERROR',
           message: 'Database connection failed',
-          details: error.message,
+          details: error instanceof Error ? error.message : String(error),
           correlationId: req.correlationId
         }
       });

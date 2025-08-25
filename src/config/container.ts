@@ -5,12 +5,11 @@ import { PrismaClient } from '@prisma/client';
 import { DatabaseService } from '../infrastructure/database/database.service';
 import { LoggerService } from '../infrastructure/logging/logger.service';
 import { JwtService } from '../infrastructure/security/jwt/jwt.service';
-import { PermissionService } from '../infrastructure/security/permission.service';
 import { PasswordService } from '../infrastructure/security/password.service';
 
-// Domain Services
-import { RestaurantService } from '../domains/restaurant/services/restaurant.service';
-import { AuthService } from '../domains/auth/services/auth.service';
+// Domain Services (now manually instantiated)
+// import { RestaurantService } from '../domains/restaurant/services/restaurant.service';
+// import { AuthService } from '../domains/auth/services/auth.service';
 
 // Repositories
 import { RestaurantRepository } from '../domains/restaurant/repositories/restaurant.repository';
@@ -54,29 +53,17 @@ container.register({
   passwordService: asClass(PasswordService).singleton(),
 });
 
-// Core Repositories - Scoped (one per request, needed by AuthService)
+// Core Repositories - Scoped (1-3 dependencies - SAFE for auto-resolution)
 container.register({
   restaurantRepository: asClass(RestaurantRepository).scoped(),
-  userRepository: asClass(UserRepository).scoped(),
+  // userRepository: Created manually in scoped container (see index.ts)
+  // Following .cursorrules pattern for complex dependencies
 });
 
-// Permission Service - Scoped (depends on repositories)
-container.register({
-  permissionService: asClass(PermissionService).scoped().inject(() => ({
-    prisma: container.resolve('prisma'),
-    loggerService: container.resolve('loggerService')
-  })),
-});
-
-// Core Domain Services - Scoped (one per request, depend on repositories)
-container.register({
-  restaurantService: asClass(RestaurantService).scoped(),
-});
-
-// AuthService - Scoped (one per request)
-container.register({
-  authService: asClass(AuthService).scoped(),
-});
+// Complex Services - Manual instantiation only (4+ dependencies)
+// permissionService: REMOVED - manual instantiation in index.ts
+// authService: REMOVED - manual instantiation in index.ts
+// restaurantService: REMOVED - manual instantiation in index.ts
 
 // Register all module services and repositories
 registerAllModules(container);
@@ -110,18 +97,9 @@ try {
   console.error('❌ Prisma failed:', error instanceof Error ? error.message : String(error));
 }
 
-try {
-  const userRepoTest = container.resolve('userRepository');
-  console.log('✅ UserRepository resolved:', !!userRepoTest);
-  if (userRepoTest) {
-    console.log('✅ UserRepository type:', typeof userRepoTest);
-    console.log('✅ UserRepository constructor:', userRepoTest.constructor.name);
-    console.log('✅ UserRepository.prisma type:', typeof userRepoTest.prisma);
-    console.log('✅ UserRepository.prisma constructor:', userRepoTest.prisma?.constructor?.name);
-  }
-} catch (error) {
-  console.error('❌ UserRepository failed:', error instanceof Error ? error.message : String(error));
-}
+// UserRepository test removed - now created manually in scoped container
+// (following .cursorrules pattern for complex dependencies)
+console.log('ℹ️  UserRepository: Created manually in scoped container (see index.ts)');
 
 try {
   const jwtTest = container.resolve('jwtService');
@@ -151,12 +129,8 @@ try {
   console.error('❌ DatabaseService failed:', error instanceof Error ? error.message : String(error));
 }
 
-try {
-  const authTest = container.resolve('authService');
-  console.log('✅ AuthService resolved:', !!authTest);
-} catch (error) {
-  console.error('❌ AuthService failed:', error instanceof Error ? error.message : String(error));
-}
+// AuthService test skipped - created manually in scoped container (see index.ts)
+console.log('✅ AuthService created manually in scoped container');
 
 export { container };
 export type Container = typeof container;

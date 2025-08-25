@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { authenticate, authorizeRestaurantAccess } from '../../../domains/auth/middleware/auth.middleware';
-import { UserRole, Permissions } from '../../../domains/shared/types/permissions';
+import { UserRole } from '../../../domains/shared/types/permissions';
 import { BusinessRuleError } from '../../../lib/errors/specific-errors';
 import { RestaurantSettings } from '../../../domains/shared/types/restaurant';
 
@@ -14,25 +14,25 @@ const router = Router();
 // Get all restaurants (public endpoint for listing)
 router.get('/', async (req, res) => {
   try {
-    console.log('🔍 Restaurants endpoint called - returning mock data for testing');
 
-    // Return mock data to test if the endpoint works
+    // ✅ Use proper service layer instead of mock data
+    const restaurantService = req.container.resolve('restaurantService') as any;
+    const restaurants = await restaurantService.getAllRestaurants();
+
     res.json({
       success: true,
       data: {
-        restaurants: [
-          {
-            id: 'test-restaurant-1',
-            name: 'Test Restaurant',
-            timezone: 'America/New_York',
-            locale: 'en-US',
-            currency: 'USD',
-            isActive: true,
-            createdAt: new Date().toISOString()
-          }
-        ],
-        count: 1,
-        note: 'Mock data - database integration temporarily disabled for testing'
+        restaurants: restaurants.map((r: any) => ({
+          id: r.id,
+          name: r.name,
+          timezone: r.timezone,
+          locale: r.locale,
+          currency: r.currency,
+          isActive: r.isActive,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt
+        })),
+        count: restaurants.length
       },
       correlationId: req.correlationId
     });
@@ -102,7 +102,7 @@ router.post('/setup', async (req, res) => {
       correlationId: req.correlationId
     });
   } catch (error) {
-    throw error;
+    next(error);
   }
 });
 
@@ -314,7 +314,7 @@ router.post('/setup-complete', async (req, res) => {
       correlationId: req.correlationId
     });
   } catch (error) {
-    throw error;
+    next(error);
   }
 });
 
@@ -389,7 +389,7 @@ router.post('/:restaurantId/setup-owner', async (req, res) => {
       correlationId: req.correlationId
     });
   } catch (error) {
-    throw error;
+    next(error);
   }
 });
 
