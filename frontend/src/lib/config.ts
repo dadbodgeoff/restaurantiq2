@@ -6,7 +6,9 @@ export const config = {
   APP_VERSION: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0',
 
   // Backend API Configuration
-  API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+  API_URL: process.env.NODE_ENV === 'development'
+    ? 'http://localhost:3000'      // ✅ Browser can access
+    : 'http://backend:3000',       // ✅ Containers use this
 
   // Authentication Configuration
   JWT_SECRET: process.env.NEXT_PUBLIC_JWT_SECRET || 'your-jwt-secret-key-change-in-production',

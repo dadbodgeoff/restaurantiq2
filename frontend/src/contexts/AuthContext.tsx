@@ -22,23 +22,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// 🔍 DEBUG: AuthProvider logging
-console.log('🔍 DEBUG: AuthProvider component starting');
+// AuthProvider for authentication context
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  console.log('🔍 DEBUG: AuthProvider children:', !!children);
-
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false); // Start with false for SSR
 
   // Create auth service instance directly
   const authService = useMemo(() => new AuthService(), []);
-
-  console.log('🔍 DEBUG: AuthProvider initial state:', {
-    user: !!user,
-    isLoading,
-    hasAuthService: !!authService
-  });
 
   useEffect(() => {
     // Only run on client side

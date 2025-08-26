@@ -40,41 +40,24 @@ export interface RegisterRequest {
   restaurantId: string;
 }
 
-// 🔍 DEBUG: AuthService logging
-console.log('🔍 DEBUG: AuthService class definition loaded');
+// AuthService for authentication operations
 
 export class AuthService {
   private baseUrl = config.API_URL;
 
   constructor() {
-    console.log('🔍 DEBUG: AuthService constructor called');
-    console.log('🔍 DEBUG: Config API_URL available:', typeof config !== 'undefined');
-    console.log('🔍 DEBUG: Config API_URL value:', config?.API_URL);
-    console.log('🔍 DEBUG: Final baseUrl:', this.baseUrl);
+    // Initialize with API URL from config
   }
 
   async login(credentials: { email: string; password: string; restaurantId?: string }): Promise<LoginResponse> {
-    console.log('🔍 DEBUG: AuthService login called with:', {
-      email: credentials.email,
-      hasPassword: !!credentials.password,
-      restaurantId: credentials.restaurantId,
-      baseUrl: this.baseUrl,
-      fullUrl: `${this.baseUrl}/auth/login`
-    });
 
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
+    // Use Next.js API route as proxy to avoid CORS issues
+    const response = await fetch('/api/auth/login', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(credentials),
-    });
-
-    console.log('🔍 DEBUG: AuthService response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries()),
-      ok: response.ok
     });
 
     if (!response.ok) {
@@ -95,7 +78,7 @@ export class AuthService {
   }
 
   async register(data: RegisterRequest): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/auth/register`, {
+    const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -110,7 +93,7 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
-    const response = await fetch(`${this.baseUrl}/auth/logout`, {
+    const response = await fetch('/api/auth/logout', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -129,7 +112,7 @@ export class AuthService {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+    const response = await fetch('/api/auth/refresh', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
