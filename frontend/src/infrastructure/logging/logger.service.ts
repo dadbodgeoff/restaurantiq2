@@ -34,7 +34,10 @@ export class LoggerService {
   }
 
   error(operation: string, error: Error, context?: LogContext): void {
-    this.log('error', operation, error.message, context, error);
+    // Handle cases where error might not be a proper Error object
+    const errorMessage = error?.message || error?.toString() || 'Unknown error';
+    const errorObj = error instanceof Error ? error : new Error(errorMessage);
+    this.log('error', operation, errorMessage, context, errorObj);
   }
 
   private log(
@@ -74,6 +77,12 @@ export class LoggerService {
       context,
       ...(error && { error }),
     };
+
+    // Prevent logging empty objects
+    if (Object.keys(logData).length === 0 || (!logData.operation && !logData.message)) {
+      console.error(`[${entry.timestamp.toISOString()}] ERROR: Empty log data`, { entry });
+      return;
+    }
 
     switch (level) {
       case 'debug':

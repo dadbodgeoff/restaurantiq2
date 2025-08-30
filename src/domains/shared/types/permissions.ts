@@ -102,6 +102,7 @@ export const Permissions = {
   PREP_DELETE: 'prep.delete',
   PREP_FINALIZE: 'prep.finalize',
   PREP_MANAGE: 'prep.manage',
+  PREP_SYNC: 'prep.sync',
 
   // Revenue Management
   REVENUE_READ: 'revenue.read',
@@ -157,7 +158,7 @@ export const DefaultRolePermissions: Record<UserRole, Permission[]> = {
     Permissions.USERS_ASSIGN_ROLE, Permissions.USERS_MANAGE_OWN,
     Permissions.RESTAURANT_READ, Permissions.RESTAURANT_UPDATE, Permissions.RESTAURANT_CONFIGURE,
     Permissions.MENU_CREATE, Permissions.MENU_READ, Permissions.MENU_UPDATE, Permissions.MENU_DELETE, Permissions.MENU_MANAGE,
-    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE,
+    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE, Permissions.PREP_SYNC,
     Permissions.REVENUE_READ, Permissions.REVENUE_EXPORT,
     Permissions.REPORTS_READ, Permissions.REPORTS_EXPORT,
     Permissions.INVENTORY_CREATE, Permissions.INVENTORY_READ, Permissions.INVENTORY_UPDATE, Permissions.INVENTORY_MANAGE,
@@ -172,7 +173,7 @@ export const DefaultRolePermissions: Record<UserRole, Permission[]> = {
     Permissions.USERS_MANAGE_OWN,
     Permissions.RESTAURANT_READ, Permissions.RESTAURANT_UPDATE, Permissions.RESTAURANT_CONFIGURE,
     Permissions.MENU_CREATE, Permissions.MENU_READ, Permissions.MENU_UPDATE, Permissions.MENU_DELETE, Permissions.MENU_MANAGE,
-    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE,
+    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE, Permissions.PREP_SYNC,
     Permissions.REVENUE_READ, Permissions.REVENUE_EXPORT,
     Permissions.REPORTS_READ, Permissions.REPORTS_EXPORT,
     Permissions.INVENTORY_CREATE, Permissions.INVENTORY_READ, Permissions.INVENTORY_UPDATE, Permissions.INVENTORY_MANAGE,
@@ -186,7 +187,7 @@ export const DefaultRolePermissions: Record<UserRole, Permission[]> = {
     Permissions.USERS_READ, Permissions.USERS_UPDATE, Permissions.USERS_MANAGE_OWN,
     Permissions.RESTAURANT_READ,
     Permissions.MENU_CREATE, Permissions.MENU_READ, Permissions.MENU_UPDATE, Permissions.MENU_DELETE,
-    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE,
+    Permissions.PREP_CREATE, Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_FINALIZE, Permissions.PREP_MANAGE, Permissions.PREP_SYNC,
     Permissions.REVENUE_READ, Permissions.REPORTS_READ, Permissions.REPORTS_EXPORT,
     Permissions.INVENTORY_READ, Permissions.INVENTORY_UPDATE,
     Permissions.SETTINGS_READ
@@ -198,7 +199,7 @@ export const DefaultRolePermissions: Record<UserRole, Permission[]> = {
     Permissions.AUTH_LOGIN, Permissions.AUTH_LOGOUT,
     Permissions.USERS_READ, Permissions.USERS_MANAGE_OWN,
     Permissions.MENU_READ,
-    Permissions.PREP_READ, Permissions.PREP_UPDATE,
+    Permissions.PREP_READ, Permissions.PREP_UPDATE, Permissions.PREP_SYNC,
     Permissions.REVENUE_READ,
     Permissions.INVENTORY_READ
     // NOTE: Can perform daily tasks but not manage others

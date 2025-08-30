@@ -3,6 +3,7 @@ import { authenticate, authorizeRestaurantAccess } from '../../../domains/auth/m
 import { UserRole } from '../../../domains/shared/types/permissions';
 import { BusinessRuleError } from '../../../lib/errors/specific-errors';
 import { RestaurantSettings } from '../../../domains/shared/types/restaurant';
+import menuRoutes from './menu';
 
 const router = Router();
 
@@ -44,7 +45,7 @@ router.get('/', async (req, res) => {
 
 // POST /api/v1/restaurants/setup
 // Create initial restaurant (public endpoint for first-time setup)
-router.post('/setup', async (req, res) => {
+router.post('/setup', async (req, res, next) => {
   try {
     const {
       name,
@@ -111,7 +112,7 @@ router.post('/setup', async (req, res) => {
 router.get('/:restaurantId',
   authenticate(),
   authorizeRestaurantAccess(),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { restaurantId } = req.params;
 
@@ -144,7 +145,7 @@ router.get('/:restaurantId',
 router.put('/:restaurantId',
   authenticate(),
   authorizeRestaurantAccess(),
-  async (req, res) => {
+  async (req, res, next) => {
     try {
       const { restaurantId } = req.params;
       const updates = req.body;
@@ -217,7 +218,7 @@ router.get('/:restaurantId/users',
 
 // POST /api/v1/restaurants/setup-complete
 // Complete restaurant setup: create restaurant + owner user in one transaction
-router.post('/setup-complete', async (req, res) => {
+router.post('/setup-complete', async (req, res, next) => {
   try {
     const {
       restaurant: restaurantData,
@@ -320,7 +321,7 @@ router.post('/setup-complete', async (req, res) => {
 
 // POST /api/v1/restaurants/:restaurantId/setup-owner
 // Create the first owner user for a restaurant
-router.post('/:restaurantId/setup-owner', async (req, res) => {
+router.post('/:restaurantId/setup-owner', async (req, res, next) => {
   try {
     const { restaurantId } = req.params;
     const {
@@ -392,5 +393,12 @@ router.post('/:restaurantId/setup-owner', async (req, res) => {
     next(error);
   }
 });
+
+// ==========================================
+// MENU MANAGEMENT ENDPOINTS
+// ==========================================
+
+// Mount menu routes for each restaurant
+router.use('/:restaurantId/menu', menuRoutes);
 
 export default router;

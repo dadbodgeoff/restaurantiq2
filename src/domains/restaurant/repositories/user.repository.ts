@@ -126,43 +126,44 @@ export class UserRepository extends BaseRepository {
         console.log(`🔍 ${this.constructor.name}.findByEmail`, { email });
 
         const users = await prisma.user.findMany({
-        where: {
-          email: email.toLowerCase().trim(),
-          isActive: true,
-        },
-        include: {
-          restaurant: true,
-        },
-      });
+          where: {
+            email: email.toLowerCase().trim(),
+            isActive: true,
+          },
+          include: {
+            restaurant: true,
+          },
+        });
 
-      return users.map(user => ({
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        password: this.safeOptional(user.password),
-        role: user.role,
-        isActive: user.isActive,
-        lastLoginAt: this.safeOptional(user.lastLoginAt),
-        failedLoginAttempts: user.failedLoginAttempts,
-        lockedUntil: this.safeOptional(user.lockedUntil),
-        restaurantId: user.restaurantId,
-        assignedById: this.safeOptional(user.assignedById),
-        createdAt: user.createdAt,
-        updatedAt: user.updatedAt,
-        restaurant: user.restaurant ? {
-          id: user.restaurant.id,
-          name: user.restaurant.name,
-          timezone: user.restaurant.timezone,
-          locale: user.restaurant.locale,
-          currency: user.restaurant.currency,
-          isActive: user.restaurant.isActive,
-          settings: user.restaurant.settings as any,
-          createdAt: user.restaurant.createdAt,
-          updatedAt: user.restaurant.updatedAt,
-        } : undefined,
-      }));
-    }, 'findByEmail');
+        return users.map(user => ({
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          password: this.safeOptional(user.password),
+          role: user.role,
+          isActive: user.isActive,
+          lastLoginAt: this.safeOptional(user.lastLoginAt),
+          failedLoginAttempts: user.failedLoginAttempts,
+          lockedUntil: this.safeOptional(user.lockedUntil),
+          restaurantId: user.restaurantId,
+          assignedById: this.safeOptional(user.assignedById),
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
+          restaurant: user.restaurant ? {
+            id: user.restaurant.id,
+            name: user.restaurant.name,
+            timezone: user.restaurant.timezone,
+            locale: user.restaurant.locale,
+            currency: user.restaurant.currency,
+            isActive: user.restaurant.isActive,
+            settings: user.restaurant.settings as any,
+            createdAt: user.restaurant.createdAt,
+            updatedAt: user.restaurant.updatedAt,
+          } : undefined,
+        }));
+      }
+    );
   }
 
   async findByRestaurantId(restaurantId: string): Promise<User[]> {

@@ -5,6 +5,11 @@ import { authenticate, authorizeRestaurantAccess } from '../../../domains/auth/m
 import authRoutes from './auth';
 import userRoutes from './users';
 import restaurantRoutes from './restaurants';
+import prepRoutes from './prep';
+import snapshotRoutes from './snapshots';
+import menuRoutes from './menu';
+import pricingRoutes from './pricing';
+import invoiceImportRoutes from './invoice-import';
 
 // Import route modules (to be created in future phases)
 export function setupRoutes(): Router {
@@ -21,7 +26,9 @@ export function setupRoutes(): Router {
         authentication: true,
         userManagement: true,
         roleHierarchy: true,
-        permissions: true
+        permissions: true,
+        dailySnapshots: true,
+        sourceOfTruth: true
       }
     });
   });
@@ -66,6 +73,8 @@ export function setupRoutes(): Router {
 
   // Restaurant routes (some public, some protected)
   router.use('/restaurants', restaurantRoutes);
+  // Prep routes for restaurants
+  router.use('/restaurants/:restaurantId/prep', prepRoutes);
 
   // Protected routes
   const protectedRouter = Router();
@@ -73,6 +82,15 @@ export function setupRoutes(): Router {
 
   // User management routes
   protectedRouter.use('/', userRoutes);
+
+  // Daily Snapshot routes (Source of Truth)
+  protectedRouter.use('/snapshots', snapshotRoutes);
+
+  // Price Intelligence routes (4 trackers)
+  protectedRouter.use('/pricing', pricingRoutes);
+
+  // Invoice Import routes (CSV, PDF, TXT)
+  protectedRouter.use('/invoice-import', invoiceImportRoutes);
 
   // Revenue Ready management (placeholder - will be implemented in future phases)
   protectedRouter.get('/restaurants/:restaurantId/revenue',
@@ -84,7 +102,7 @@ export function setupRoutes(): Router {
           code: 'NOT_IMPLEMENTED',
           message: 'Revenue Ready management endpoints will be implemented in future phases',
           correlationId: req.correlationId,
-          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy', 'menuManagement', 'prepManagement']
+          availableFeatures: ['authentication', 'userManagement', 'roleHierarchy', 'menuManagement', 'prepManagement', 'dailySnapshots']
         },
       });
     }

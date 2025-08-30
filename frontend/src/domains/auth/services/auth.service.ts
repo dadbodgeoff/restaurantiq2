@@ -11,6 +11,17 @@ export interface User {
   permissions: string[];
 }
 
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+  restaurantId?: string;
+}
+
 export interface LoginResponse {
   user: User;
   tokens: {
@@ -121,7 +132,15 @@ export class AuthService {
     });
 
     if (!response.ok) {
-      throw new Error('Token refresh failed');
+      const error = await response.json();
+      throw new Error(error.error?.message || 'Token refresh failed');
+    }
+
+    // ✅ UPDATE STORED TOKENS WITH NEW ACCESS TOKEN
+    const result = await response.json();
+    if (result.success && result.data) {
+      localStorage.setItem('accessToken', result.data.accessToken);
+      localStorage.setItem('user', JSON.stringify(result.data.user));
     }
   }
 

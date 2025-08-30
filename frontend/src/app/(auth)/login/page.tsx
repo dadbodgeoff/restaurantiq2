@@ -14,12 +14,15 @@ export default function LoginPage() {
       const result = await login(email, password, restaurantId);
 
       // If restaurant selection is required, let the form handle it
-      if (result.requiresRestaurantSelection) {
+      if (result && result.requiresRestaurantSelection) {
         return result;
       }
 
       // Successful login - redirect to dashboard
       router.push('/dashboard');
+
+      // Return empty object for successful login without restaurant selection
+      return {};
     } catch (error) {
       console.error('Login failed:', error);
       // Error handling following your backend patterns

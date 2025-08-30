@@ -13,7 +13,7 @@ const envSchema = z.object({
   // Security Configuration
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET must be at least 32 characters'),
-  JWT_EXPIRES_IN: z.string().default('15m'),
+  JWT_EXPIRES_IN: z.string().default('4h'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   // Restaurant Configuration
@@ -29,7 +29,7 @@ const envSchema = z.object({
   LOG_FORMAT: z.enum(['json', 'dev']).default('dev'),
 
   // CORS Configuration
-  CORS_ORIGINS: z.string().default('http://localhost:3000'),
+  CORS_ORIGINS: z.string().default('http://localhost:3001,http://localhost:3000'),
 
   // Feature Flags
   ENABLE_SWAGGER: z.string().transform(v => v === 'true').default('false'),

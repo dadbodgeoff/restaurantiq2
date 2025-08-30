@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef } from 'react';
 import { AuthService, User, LoginResponse, RestaurantSelection } from '@/domains/auth/services/auth.service';
 
 interface AuthContextType {
@@ -31,6 +31,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Create auth service instance directly
   const authService = useMemo(() => new AuthService(), []);
 
+  // Inactivity tracking
+  const INACTIVITY_TIMEOUT = 2 * 60 * 60 * 1000; // 2 hours
+  const lastActivity = useRef<number>(Date.now());
+
   useEffect(() => {
     // Only run on client side
     if (typeof window === 'undefined') return;
@@ -48,7 +52,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     initializeAuth();
-  }, [authService]);
+  }, [authService]); // Removed 'user' to prevent infinite loop
+
+  // Separate useEffect for inactivity detection
+  useEffect(() => {
+    // Only run on client side and when user is logged in
+    if (typeof window === 'undefined' || !user) return;
+
+    const updateActivity = () => {
+      lastActivity.current = Date.now();
+    };
+
+    // Listen for user activity
+    document.addEventListener('mousedown', updateActivity);
+    document.addEventListener('keydown', updateActivity);
+    document.addEventListener('scroll', updateActivity);
+    document.addEventListener('touchstart', updateActivity);
+
+    // Check for inactivity every minute
+    const inactivityInterval = setInterval(() => {
+      const inactiveTime = Date.now() - lastActivity.current;
+      if (inactiveTime > INACTIVITY_TIMEOUT) {
+        console.log('🔒 User inactive for 2 hours, logging out...');
+        authService.logout().finally(() => {
+          setUser(null);
+          // Optional: redirect to login
+          window.location.href = '/login';
+        });
+        clearInterval(inactivityInterval);
+      }
+    }, 60 * 1000); // Check every minute
+
+    // Cleanup function
+    return () => {
+      document.removeEventListener('mousedown', updateActivity);
+      document.removeEventListener('keydown', updateActivity);
+      document.removeEventListener('scroll', updateActivity);
+      document.removeEventListener('touchstart', updateActivity);
+      clearInterval(inactivityInterval);
+    };
+  }, [user, authService]); // Only depends on user and authService
 
   const login = async (email: string, password: string, restaurantId?: string): Promise<LoginResponse> => {
     setIsLoading(true);

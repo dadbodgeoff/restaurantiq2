@@ -70,8 +70,10 @@ services:
       - REDIS_URL=redis://redis:6379
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-at-least-32-characters-long}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-your-super-secret-refresh-jwt-key-at-least-32-characters-long}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-4h}
+      - JWT_REFRESH_EXPIRES_IN=${JWT_REFRESH_EXPIRES_IN:-7d}
       - LOG_LEVEL=info
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000,https://restaurantiq.local}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3001,http://localhost:3000,https://restaurantiq.local}
       - ENABLE_SWAGGER=${ENABLE_SWAGGER:-false}
       - ENABLE_METRICS=${ENABLE_METRICS:-true}
       - PATH=/app/node_modules/.bin:$PATH

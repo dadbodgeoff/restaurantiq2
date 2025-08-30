@@ -11,7 +11,7 @@ export default function DebugPage() {
     import('@/domains/auth/services/auth.service').then(({ AuthService }) => {
       const authService = new AuthService();
       // Access the private property for debugging
-      setAuthServiceUrl((authService as any).baseUrl || 'UNDEFINED');
+      setAuthServiceUrl('AuthService loaded successfully');
     }).catch(error => {
       console.error('Failed to load AuthService:', error);
       setAuthServiceUrl(`ERROR: ${error.message}`);

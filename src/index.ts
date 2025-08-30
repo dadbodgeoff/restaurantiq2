@@ -23,8 +23,21 @@ import { PermissionService } from './infrastructure/security/permission.service'
 // Domain Services
 import { RestaurantService } from './domains/restaurant/services/restaurant.service';
 
+// Pricing Services
+import { PriceIngestionService } from './domains/pricing/services/price-ingestion.service';
+import { PriceStatsService } from './domains/pricing/services/price-stats.service';
+import { ItemMatchingService } from './domains/pricing/services/item-matching.service';
+
+// Invoice Import Services
+import { InvoiceImportService } from './domains/invoice/services/invoice-import.service';
+
 // Repositories
 import { RestaurantRepository } from './domains/restaurant/repositories/restaurant.repository';
+
+// Pricing Repositories
+import { VendorItemRepository } from './domains/pricing/repositories/vendor-item.repository';
+import { VendorItemStatsRepository } from './domains/pricing/repositories/vendor-item-stats.repository';
+import { VendorItemDailyRepository } from './domains/pricing/repositories/vendor-item-daily.repository';
 
 // Middleware
 import { errorHandler } from './infrastructure/web/middleware/error-handler';
@@ -106,10 +119,19 @@ async function bootstrap() {
         const userRepositoryInstance = new UserRepository(prismaClient);
         const restaurantRepositoryInstance = new RestaurantRepository(prismaClient);
 
+        // Manually create pricing repositories
+        const vendorItemRepositoryInstance = new VendorItemRepository(prismaClient);
+        const vendorItemStatsRepositoryInstance = new VendorItemStatsRepository(prismaClient);
+        const vendorItemDailyRepositoryInstance = new VendorItemDailyRepository(prismaClient);
+
         // Register manually created repositories in scoped container
         scopedContainer.register({
           userRepository: asValue(userRepositoryInstance),
-          restaurantRepository: asValue(restaurantRepositoryInstance)
+          restaurantRepository: asValue(restaurantRepositoryInstance),
+          vendorItemRepository: asValue(vendorItemRepositoryInstance),
+          vendorItemStatsRepository: asValue(vendorItemStatsRepositoryInstance),
+          vendorItemDailyRepository: asValue(vendorItemDailyRepositoryInstance),
+          vendorRepository: asValue(vendorRepositoryInstance)
         });
 
         // Manually create PermissionService with proper dependencies
@@ -146,10 +168,43 @@ async function bootstrap() {
           userRepositoryInstance
         );
 
+        // Manually create pricing services with proper dependencies
+        const priceStatsServiceInstance = new PriceStatsService(
+          vendorItemDailyRepositoryInstance,
+          vendorItemStatsRepositoryInstance,
+          loggerService
+        );
+
+        const itemMatchingServiceInstance = new ItemMatchingService(
+          prismaClient,
+          loggerService
+        );
+
+        const priceIngestionServiceInstance = new PriceIngestionService(
+          vendorItemRepositoryInstance,
+          vendorItemDailyRepositoryInstance,
+          vendorItemStatsRepositoryInstance,
+          priceStatsServiceInstance,
+          itemMatchingServiceInstance,
+          loggerService
+        );
+
+        // Manually create invoice import service with proper dependencies
+        const vendorRepositoryInstance = new VendorRepository(prismaClient);
+        const invoiceImportServiceInstance = new InvoiceImportService(
+          priceIngestionServiceInstance,
+          vendorRepositoryInstance,
+          loggerService
+        );
+
         // Override any existing service registrations
         scopedContainer.register({
           authService: asValue(authServiceInstance),
-          restaurantService: asValue(restaurantServiceInstance)
+          restaurantService: asValue(restaurantServiceInstance),
+          priceIngestionService: asValue(priceIngestionServiceInstance),
+          priceStatsService: asValue(priceStatsServiceInstance),
+          itemMatchingService: asValue(itemMatchingServiceInstance),
+          invoiceImportService: asValue(invoiceImportServiceInstance)
         });
 
         req.container = scopedContainer;

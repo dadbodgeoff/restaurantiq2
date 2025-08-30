@@ -20,7 +20,20 @@ model Restaurant {
   updatedAt DateTime        @updatedAt
   snapshots DailySnapshot[]
   users     User[]
-
+  menuCategories MenuCategory[]
+  menuItems MenuItem[]
+  weeklyMenus WeeklyMenu[]
+  prepItems PrepItem[]
+  prepPresets PrepPreset[]
+  
+  // Price Intelligence Relations
+  vendors          Vendor[]
+  invoices         Invoice[]
+  vendorItems      VendorItem[]
+  vendorItemStats  VendorItemStats[]
+  vendorItemDaily  VendorItemDaily[]
+  itemMasters      ItemMaster[]
+  
   @@map("restaurants")
 }
 
@@ -135,6 +148,138 @@ model DailySnapshot {
   @@map("daily_snapshots")
 }
 
+model PrepItem {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  menuItemId    String
+  businessDate  DateTime @db.Date
+
+  par           Float    @default(0) @db.DoublePrecision
+  onHand        Float    @default(0) @db.DoublePrecision
+  amountToPrep  Float    @default(0) @db.DoublePrecision
+
+  unit          String   @default("each") @db.VarChar(50)
+  notes         String?  @db.Text
+  lastUpdated   DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem      MenuItem   @relation("PrepItem_MenuItem", fields: [menuItemId], references: [id], onDelete: Cascade)
+  
+  @@unique([restaurantId, menuItemId, businessDate], name: "unique_prep_item")
+  @@index([restaurantId, businessDate], name: "idx_restaurant_date")
+  @@index([menuItemId], name: "idx_menu_item")
+  @@map("prep_items")
+}
+
+model PrepPreset {
+  id            String   @id @default(cuid())
+  restaurantId  String
+  dayOfWeek     String   @db.VarChar(10) // "MONDAY", "TUESDAY", etc.
+  menuItemId    String
+  presetPar     Float    @default(0) @db.DoublePrecision
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  menuItem      MenuItem   @relation("PrepPreset_MenuItem", fields: [menuItemId], references: [id], onDelete: Cascade)
+  
+  @@unique([restaurantId, dayOfWeek, menuItemId])
+  @@index([restaurantId, dayOfWeek])
+  @@map("prep_presets")
+}
+
+model MenuCategory {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  // Category fields
+  name        String
+  description String?
+  displayOrder Int @default(0)
+  isActive    Boolean @default(true)
+
+  // Relations
+  items MenuItem[]
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  // Item fields
+  name          String
+  description   String?
+  price         Decimal @default(0)
+  imageUrl      String?
+  isAvailable   Boolean @default(true)
+  prepTimeMinutes Int @default(0)
+  prepNotes     String?
+  allergens     String?
+  nutritionalInfo String?
+
+  // Category relationship
+  categoryId String
+  category   MenuCategory @relation(fields: [categoryId], references: [id])
+
+  // Relations
+  options MenuItemOption[]
+  prepItems PrepItem[] @relation("PrepItem_MenuItem")
+  prepPresets PrepPreset[] @relation("PrepPreset_MenuItem")
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, categoryId])
+  @@index([restaurantId, isAvailable])
+  @@unique([restaurantId, name])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("menu_items")
+}
+
+model MenuItemOption {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Item relationship
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  // Option fields
+  name          String
+  type          String // size, topping, side
+  priceModifier Decimal @default(0)
+  isRequired    Boolean @default(false)
+  maxSelections Int @default(1)
+  displayOrder  Int @default(0)
+
+  // MANDATORY: Indexes for performance
+  @@index([menuItemId])
+  @@index([menuItemId, displayOrder])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("menu_item_options")
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -148,4 +293,293 @@ enum SnapshotStatus {
   PENDING
   FINALIZED
   CORRUPTED
+}
+
+model WeeklyMenu {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  // Weekly menu fields
+  dayOfWeek    String // 'MONDAY', 'TUESDAY', etc.
+  menuItems    Json   // Array of {id, name, categoryId, categoryName}
+  isActive     Boolean @default(true)
+  lastModified DateTime @default(now())
+  
+  // Source of truth integration
+  version      Int @default(1)
+  createdBy    String
+  lastEditedBy String?
+
+  // MANDATORY: Unique constraint per restaurant per day
+  @@unique([restaurantId, dayOfWeek])
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("weekly_menus")
+}
+
+// ==========================================
+// PRICE INTELLIGENCE MODELS
+// ==========================================
+
+model Vendor {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Vendor fields
+  name         String
+  contactEmail String?
+  contactPhone String?
+  address      String?
+  isActive     Boolean @default(true)
+
+  // Relations
+  invoices     Invoice[]
+  items        VendorItem[]
+  itemStats    VendorItemStats[]
+  itemDaily    VendorItemDaily[]
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, isActive])
+  @@index([restaurantId, name])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("vendors")
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Vendor relationship
+  vendorId      String
+  vendor        Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  // Invoice fields
+  invoiceNumber String
+  invoiceDate   DateTime
+  businessDate  String   // ISO date string: "2025-08-29"
+  currency      String   @default("USD")
+  subtotal      Float    @default(0) @db.DoublePrecision
+  tax           Float    @default(0) @db.DoublePrecision
+  total         Float    @default(0) @db.DoublePrecision
+  status        InvoiceStatus @default(PENDING)
+
+  // Relations
+  lines         InvoiceLine[]
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, vendorId])
+  @@index([restaurantId, invoiceDate])
+  @@index([restaurantId, businessDate])
+  @@unique([restaurantId, vendorId, invoiceNumber])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("invoices")
+}
+
+model InvoiceLine {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Invoice relationship
+  invoiceId     String
+  invoice       Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  // Line item fields
+  itemNumber    String
+  productName   String
+  vendorName    String
+  unitPrice     Float    @db.DoublePrecision
+  quantity      Float    @default(1) @db.DoublePrecision
+  extendedPrice Float    @db.DoublePrecision
+  unit          String   @default("each") @db.VarChar(50)
+  category      String?
+
+  // MANDATORY: Indexes for performance
+  @@index([invoiceId])
+  @@index([itemNumber])
+  @@index([productName])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("invoice_lines")
+}
+
+model VendorItem {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Vendor relationship
+  vendorId     String
+  vendor       Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  // Item tracking fields
+  itemNumber   String
+  lastSeenName String
+  lastSeenUnit String   @default("each") @db.VarChar(50)
+  lastSeenAt   DateTime @default(now())
+
+  // Item Master relationship (for cross-vendor comparison)
+  itemMasterId String?
+  itemMaster   ItemMaster? @relation(fields: [itemMasterId], references: [id])
+
+  // Relations
+  stats        VendorItemStats?
+  daily        VendorItemDaily[]
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, vendorId])
+  @@index([restaurantId, itemMasterId])
+  @@index([vendorId, itemNumber])
+  @@unique([restaurantId, vendorId, itemNumber])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("vendor_items")
+}
+
+model VendorItemStats {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId     String
+  restaurant       Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Vendor relationship
+  vendorId         String
+  vendor           Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  // Item tracking
+  itemNumber       String
+
+  // Your 4 Price Trackers
+  lastPaidPrice    Float?   @db.DoublePrecision
+  lastPaidAt       DateTime?
+  avg7dPrice       Float?   @db.DoublePrecision
+  avg28dPrice      Float?   @db.DoublePrecision
+
+  // Cross-vendor comparison (NEW)
+  bestPriceAcrossVendors Float? @db.DoublePrecision
+  bestVendorName         String?
+
+  // Price variance tracking
+  diffVs7dPct      Float?   @db.DoublePrecision
+  diffVs28dPct     Float?   @db.DoublePrecision
+  diffVsBestPct    Float?   @db.DoublePrecision
+
+  // 28-day rolling statistics
+  min28dPrice      Float?   @db.DoublePrecision
+  max28dPrice      Float?   @db.DoublePrecision
+  sum28dPrice      Float?   @db.DoublePrecision
+  count28d         Int      @default(0)
+
+  // Relations
+  item             VendorItem @relation(fields: [restaurantId, vendorId, itemNumber], references: [restaurantId, vendorId, itemNumber], onDelete: Cascade)
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, vendorId])
+  @@index([restaurantId, vendorId, itemNumber])
+  @@unique([restaurantId, vendorId, itemNumber])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("vendor_item_stats")
+}
+
+model VendorItemDaily {
+  id            String   @id @default(cuid())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId  String
+  restaurant    Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Vendor relationship
+  vendorId      String
+  vendor        Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  // Item tracking
+  itemNumber    String
+  businessDate  String   // ISO date string: "2025-08-29"
+
+  // Daily aggregations
+  quantitySum   Float    @default(0) @db.DoublePrecision
+  spendSum      Float    @default(0) @db.DoublePrecision
+  avgUnitPrice  Float    @default(0) @db.DoublePrecision
+
+  // Relations
+  item          VendorItem @relation(fields: [restaurantId, vendorId, itemNumber], references: [restaurantId, vendorId, itemNumber], onDelete: Cascade)
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, vendorId])
+  @@index([restaurantId, businessDate])
+  @@index([vendorId, itemNumber, businessDate])
+  @@unique([restaurantId, vendorId, itemNumber, businessDate])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("vendor_item_daily")
+}
+
+model ItemMaster {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // MANDATORY: Restaurant relationship
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  // Master item fields
+  masterName   String   // Normalized product name
+  category     String?
+  unit         String   @default("each") @db.VarChar(50)
+  description  String?
+
+  // Cross-vendor tracking
+  vendorItems  VendorItem[]
+
+  // MANDATORY: Indexes for performance
+  @@index([restaurantId])
+  @@index([restaurantId, masterName])
+  @@index([restaurantId, category])
+  @@unique([restaurantId, masterName])
+
+  // MANDATORY: Map to snake_case table name
+  @@map("item_masters")
+}
+
+enum InvoiceStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  ERROR
+  CANCELLED
 }

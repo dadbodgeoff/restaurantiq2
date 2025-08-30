@@ -74,7 +74,7 @@ export default function Home() {
             </div>
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Menu Management</h3>
             <p className="text-gray-600">
-              Create and manage your restaurant's menu items, categories, and pricing strategies.
+              Create and manage your restaurant&apos;s menu items, categories, and pricing strategies.
             </p>
           </Card>
 
